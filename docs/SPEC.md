@@ -524,7 +524,7 @@ Where the 0.1.0 implementation differs from, or goes beyond, the spec above:
 - **Percentage and `'auto'` margins, and percentage padding, work.** Ink passes these values to Yoga unchanged, and tests cover it.
 - **ScrollView marks its viewport's Yoga node as `overflow: scroll`,** so content can extend past it along the scroll axis, as in React Native. Ink itself only clips.
 - **Terminal size never spawns processes.** Ink's `useWindowSize` shells out to `tput`/`stty` when the stream reports no size, so an internal hook reads `stdout.columns`/`rows`, then `$COLUMNS`/`$LINES`, then 80×24.
-- **Modal** content renders at the app root, so React context from the Modal's ancestors doesn't reach it. With `AppRegistry`, modals render inside the wrapper component, so wrapper providers do reach them.
+- **Modal** content is a React portal into a frame the app root draws over the app, so it keeps the context of the Modal's ancestors, as in React Native, but none of their layout, text style or background. With `AppRegistry`, the frames sit outside the wrapper component, so a modal covers the wrapper's chrome too.
 - **Dialogs blank the cells beneath them** using an unrecognized background color name, which Ink fills with plain spaces.
 - **Built earlier than planned:** `Alert` (including `prompt`), `ActionSheetIOS` and `ToastAndroid` (spec: "later") share a dialog host in the app root. `Animated` and `Image` (spec: "later") are also in 0.1.0.
 - **Focus timing:** Ink moves focus at normal React priority. A key pressed within roughly 30–50 ms after a Tab that also scrolls a ScrollView can reach the previously focused component. Normal typing is unaffected.

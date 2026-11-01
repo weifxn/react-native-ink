@@ -21,6 +21,7 @@ import { DialogHost, ToastHost } from '../apis/dialogs.js';
 import { RootTagContext } from './contexts.js';
 import {
   AppContent,
+  createFrames,
   ModalHostContext,
   ModalLayersContext,
   ModalOutlet,
@@ -34,11 +35,6 @@ import { useTerminalSize } from './useTerminalSize.js';
 export interface AppRootProps {
   children?: ReactNode;
   rootTag?: number;
-  /**
-   * Render the app content and modal outlet here (default). AppRegistry passes false and places
-   * them inside the wrapper component instead, so wrapper providers also reach modal content.
-   */
-  outlet?: boolean;
 }
 
 /**
@@ -46,7 +42,7 @@ export interface AppRootProps {
  * modals, alerts and toasts, maps Esc to BackHandler, and lets imperative APIs (Keyboard,
  * Dimensions, AccessibilityInfo, ...) reach the running Ink instance.
  */
-export function AppRoot({ children, rootTag = 0, outlet = true }: AppRootProps) {
+export function AppRoot({ children, rootTag = 0 }: AppRootProps) {
   const { exit } = useApp();
   const { activeId, disableFocus, enableFocus } = useFocusManager();
   const { stdout } = useStdout();
@@ -73,6 +69,8 @@ export function AppRoot({ children, rootTag = 0, outlet = true }: AppRootProps) 
     setLayers((previous) => {
       const index = previous.findIndex((entry) => entry.id === layer.id);
       if (index === -1) return [...previous, layer];
+      // A Modal re-renders its content through its own portal; only its options reach here.
+      if (previous[index]!.transparent === layer.transparent) return previous;
       const next = [...previous];
       next[index] = layer;
       return next;
@@ -85,7 +83,7 @@ export function AppRoot({ children, rootTag = 0, outlet = true }: AppRootProps) 
         : previous,
     );
   }, []);
-  const host = useMemo<ModalHost>(() => ({ upsert, remove }), [upsert, remove]);
+  const host = useMemo<ModalHost>(() => ({ upsert, remove, ...createFrames() }), [upsert, remove]);
 
   // Esc → BackHandler, unless it blurred a focused component or a modal is open.
   const backHandlersActive = useSyncExternalStore(
@@ -134,14 +132,8 @@ export function AppRoot({ children, rootTag = 0, outlet = true }: AppRootProps) 
             flexShrink={0}
             minHeight={layers.length > 0 ? rows : undefined}
           >
-            {outlet ? (
-              <>
-                <AppContent>{children}</AppContent>
-                <ModalOutlet />
-              </>
-            ) : (
-              children
-            )}
+            <AppContent>{children}</AppContent>
+            <ModalOutlet />
             <DialogHost />
             <ToastHost />
           </Box>

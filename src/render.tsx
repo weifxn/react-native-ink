@@ -21,14 +21,8 @@ export function render(
   node: ReactNode,
   options?: RenderOptions | NodeJS.WriteStream,
   rootTag: number = allocateRootTag(),
-  outlet = true,
 ): Instance {
-  return inkRender(
-    <AppRoot rootTag={rootTag} outlet={outlet}>
-      {node}
-    </AppRoot>,
-    options,
-  );
+  return inkRender(<AppRoot rootTag={rootTag}>{node}</AppRoot>, options);
 }
 
 /** Renders a React element to a string synchronously (no terminal needed). */

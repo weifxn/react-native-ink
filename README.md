@@ -187,7 +187,6 @@ npm run example -- shared-code        # imports from 'react-native'
 ## Limitations
 
 - **Lists are windowed only with `getItemLayout`:** a FlatList given item sizes renders `windowSize` viewports of items; otherwise, and for SectionList, every item renders.
-- **Modal context:** modal content renders at the app root, so React context from the Modal's ancestors doesn't reach it. Provide it with `AppRegistry.setWrapperComponentProvider`.
 - **No mouse or long press:** input is keyboard only.
 - **View inside Text:** a `<View>` nested in `<Text>` renders its children inline.
 - **Esc delay:** terminals report Esc with a short delay, because it also starts escape sequences.

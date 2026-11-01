@@ -36,6 +36,7 @@ First release of the rebuild on Ink 8. The 2019 prototype is still in git histor
 - Tab follows the tree, not mount order: a focusable that mounts late (after its data loaded) takes its place, and keeps focus while the order is restored.
 - A focused item is scrolled into view by every enclosing ScrollView, not only the nearest.
 - `pagingEnabled`: ←/→ (↑/↓ vertically) move a page and land on page boundaries; keyboard scrolls fire `onScrollEndDrag` and `onMomentumScrollEnd`.
+- Modal content keeps the React context of the Modal's ancestors (it renders through a portal), and with `AppRegistry` covers the wrapper component's chrome as well.
 - FlatList renders only `windowSize` viewports of items when given `getItemLayout` (`initialNumToRender` before it has measured), scrolls to unrendered indexes, and with `pagingEnabled` keeps focus on the visible page.
 
 ### Fixes

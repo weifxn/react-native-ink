@@ -49,7 +49,7 @@ const COMPONENTS: Array<[string, Status, string]> = [
   [
     'Modal',
     'supported',
-    'Opaque or transparent, focus scope, Esc → onRequestClose; content renders at the app root',
+    "Opaque or transparent, focus scope, Esc → onRequestClose; content keeps its ancestors' context",
   ],
   [
     'Image / ImageBackground',

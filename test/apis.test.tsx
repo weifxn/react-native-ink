@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   AppRegistry,
@@ -10,6 +11,7 @@ import {
   Keyboard,
   Linking,
   LogBox,
+  Modal,
   NativeEventEmitter,
   NativeModules,
   PixelRatio,
@@ -69,6 +71,39 @@ describe('AppRegistry', () => {
     AppRegistry.setSurfaceProps('count', { initialProps: { n: 2 } });
     await tick();
     expect(stdout.lastFrame).toContain('│n=2│');
+    AppRegistry.unmountApplicationComponentAtRootTag(app.rootTag);
+    AppRegistry.setWrapperComponentProvider(() => null);
+  });
+
+  it("covers the wrapper's chrome with a modal, which keeps the wrapper's context", async () => {
+    const Label = createContext('none');
+    const Frame = ({ children }: { children?: React.ReactNode }) => (
+      <Label.Provider value="from wrapper">
+        <View style={{ borderWidth: 1, alignSelf: 'flex-start' }}>{children}</View>
+      </Label.Provider>
+    );
+    const Labelled = () => <Text>{useContext(Label)}</Text>;
+    AppRegistry.setWrapperComponentProvider(() => Frame);
+    AppRegistry.registerComponent('modal-in-wrapper', () => () => (
+      <>
+        <Text>under the modal</Text>
+        <Modal visible>
+          <Labelled />
+        </Modal>
+      </>
+    ));
+    const stdout = new FakeStdout();
+    const app = AppRegistry.runApplication('modal-in-wrapper', {
+      stdout: stdout as never,
+      stdin: new FakeStdin() as never,
+      debug: true,
+      patchConsole: false,
+    });
+    await tick();
+    const frame = stdout.lastFrame ?? '';
+    expect(frame.split('\n')[0]?.trimEnd()).toBe('from wrapper');
+    expect(frame).not.toContain('under the modal');
+    expect(frame).not.toContain('│');
     AppRegistry.unmountApplicationComponentAtRootTag(app.rootTag);
     AppRegistry.setWrapperComponentProvider(() => null);
   });

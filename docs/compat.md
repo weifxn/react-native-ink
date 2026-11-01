@@ -22,7 +22,7 @@ Units: 1 = one terminal cell (one column horizontally, one row vertically), unle
 | ActivityIndicator | Supported | Braille (small) or bar (large) spinner |
 | ScrollView | Supported | Keyboard scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner |
 | FlatList / SectionList / VirtualizedList / VirtualizedSectionList | Partial | Windowed (windowSize) when getItemLayout is given, else every item renders; paging keeps focus on the visible page |
-| Modal | Supported | Opaque or transparent, focus scope, Esc → onRequestClose; content renders at the app root |
+| Modal | Supported | Opaque or transparent, focus scope, Esc → onRequestClose; content keeps its ancestors' context |
 | Image / ImageBackground | Partial | PNG/JPEG drawn with half blocks (optional `pngjs` / `jpeg-js`); no require() assets |
 | SafeAreaView / KeyboardAvoidingView | Supported | Plain Views |
 | StatusBar / RefreshControl / InputAccessoryView | Stub | Render nothing (RefreshControl drives ScrollView) |

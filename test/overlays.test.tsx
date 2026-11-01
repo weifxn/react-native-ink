@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from 'ink-testing-library';
 import {
@@ -8,6 +8,7 @@ import {
   BackHandler,
   Button,
   Modal,
+  ScrollView,
   Text,
   ToastAndroid,
   View,
@@ -94,6 +95,67 @@ describe('Modal', () => {
   });
 });
 
+describe('Modal content', () => {
+  const Theme = createContext('default theme');
+
+  function Themed() {
+    return <Text>{useContext(Theme)}</Text>;
+  }
+
+  it("keeps the context of the Modal's ancestors, as in React Native", async () => {
+    const { lastFrame } = renderInteractive(
+      <Theme.Provider value="app theme">
+        <Text>main</Text>
+        <Modal visible>
+          <Themed />
+        </Modal>
+      </Theme.Provider>,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('app theme'));
+  });
+
+  it('updates in place while open', async () => {
+    function Counter() {
+      const [count, setCount] = useState(0);
+      useEffect(() => {
+        if (count < 3) {
+          const timer = setTimeout(() => setCount(count + 1), 20);
+          return () => clearTimeout(timer);
+        }
+        return undefined;
+      }, [count]);
+      return (
+        <Modal visible>
+          <Text>{`count ${count}`}</Text>
+        </Modal>
+      );
+    }
+    const { lastFrame } = renderInteractive(<Counter />);
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('count 3'));
+  });
+
+  it("doesn't take on the layout of where it is declared", async () => {
+    const { lastFrame } = renderInteractive(
+      <ScrollView style={{ height: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={{ opacity: 0.5, width: 4 }}>
+          <Text>dim</Text>
+          <Modal visible>
+            <Text>a line wider than the view it was declared in</Text>
+            <Text>and a second one</Text>
+          </Modal>
+        </View>
+      </ScrollView>,
+    );
+    // Not clipped by the one-row ScrollView or the four-column View around the Modal.
+    await waitFor(() =>
+      expect(lastFrame()?.split('\n').slice(0, 2)).toEqual([
+        'a line wider than the view it was declared in',
+        'and a second one',
+      ]),
+    );
+  });
+});
+
 describe('Alert', () => {
   it('shows a dialog and calls the pressed button', async () => {
     const onDelete = vi.fn();
@@ -107,6 +169,9 @@ describe('Alert', () => {
     await waitFor(() => expect(lastFrame()).toContain('Delete file?'));
     await waitFor(() => expect(lastFrame()).toContain('This cannot be undone.'));
     await waitFor(() => expect(lastFrame()).toContain('[ Cancel ]'));
+    // The focused button subscribes to input in an effect after the frame that shows it: let
+    // that land before pressing, as a person can't press within a few milliseconds anyway.
+    await tick(100);
     await press(stdin, keys.enter);
     await tick();
     await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
