@@ -16,7 +16,11 @@ export function LayoutObserver({ target, onLayout }: LayoutObserverProps) {
   useEffect(() => {
     if (!hasMeasured) return;
     callback.current(
-      createSyntheticEvent('layout', { layout: { x: left, y: top, width, height } }, target.current),
+      createSyntheticEvent(
+        'layout',
+        { layout: { x: left, y: top, width, height } },
+        target.current,
+      ),
     );
   }, [left, top, width, height, hasMeasured, target]);
   return null;

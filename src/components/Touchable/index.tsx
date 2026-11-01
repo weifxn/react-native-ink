@@ -2,7 +2,11 @@ import { Children, useContext, useMemo, type ReactElement, type ReactNode } from
 import { useInput } from 'ink';
 import type { AccessibilityProps } from '../../internal/accessibility.js';
 import { TextInheritanceContext } from '../../internal/contexts.js';
-import { createPressEvent, type GestureResponderEvent, type LayoutChangeEvent } from '../../internal/events.js';
+import {
+  createPressEvent,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+} from '../../internal/events.js';
 import { useFocusable } from '../../internal/focus.js';
 import type { ColorValue, StyleProp, ViewStyle } from '../../style/types.js';
 import { PressableBase, type FocusableInstance } from '../Pressable/index.js';
@@ -71,10 +75,20 @@ const touchableProps = ({
   hasTVPreferredFocus: _h,
   onLayout,
   ...rest
-}: TouchableWithoutFeedbackProps) => ({ ...rest, onLayout: onLayout ?? undefined, onFocus: rest.onFocus ?? undefined, onBlur: rest.onBlur ?? undefined });
+}: TouchableWithoutFeedbackProps) => ({
+  ...rest,
+  onLayout: onLayout ?? undefined,
+  onFocus: rest.onFocus ?? undefined,
+  onBlur: rest.onBlur ?? undefined,
+});
 
 /** A View that dims its content while pressed. Focus with Tab; press with Enter or Space. */
-export function TouchableOpacity({ activeOpacity = 0.2, style, ref, ...props }: TouchableOpacityProps) {
+export function TouchableOpacity({
+  activeOpacity = 0.2,
+  style,
+  ref,
+  ...props
+}: TouchableOpacityProps) {
   return (
     <PressableBase
       {...touchableProps(props)}
@@ -137,7 +151,11 @@ function TouchableNoWrapper({
   const inherited = useContext(TextInheritanceContext);
   const inverse = inherited.inverse || (focus.isFocused && highlight);
   const value = useMemo(() => ({ ...inherited, inverse }), [inherited, inverse]);
-  return <TextInheritanceContext.Provider value={value}>{Children.only(children)}</TextInheritanceContext.Provider>;
+  return (
+    <TextInheritanceContext.Provider value={value}>
+      {Children.only(children)}
+    </TextInheritanceContext.Provider>
+  );
 }
 
 /** Makes its single child focusable and pressable without adding a View. */
@@ -151,7 +169,11 @@ export interface TouchableNativeFeedbackProps extends TouchableWithoutFeedbackPr
 }
 
 /** Android ripple touchable: behaves like TouchableWithoutFeedback in a terminal. */
-export function TouchableNativeFeedback({ background: _background, useForeground: _useForeground, ...props }: TouchableNativeFeedbackProps) {
+export function TouchableNativeFeedback({
+  background: _background,
+  useForeground: _useForeground,
+  ...props
+}: TouchableNativeFeedbackProps) {
   return <TouchableNoWrapper props={props} highlight />;
 }
 TouchableNativeFeedback.SelectableBackground = (rippleRadius?: number | null) => ({
@@ -164,7 +186,11 @@ TouchableNativeFeedback.SelectableBackgroundBorderless = (rippleRadius?: number 
   attribute: 'selectableItemBackgroundBorderless' as const,
   rippleRadius,
 });
-TouchableNativeFeedback.Ripple = (color: string, borderless: boolean, rippleRadius?: number | null) => ({
+TouchableNativeFeedback.Ripple = (
+  color: string,
+  borderless: boolean,
+  rippleRadius?: number | null,
+) => ({
   type: 'RippleAndroid' as const,
   color,
   borderless,

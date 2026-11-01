@@ -91,7 +91,10 @@ export function resolveFontWeight(weight: unknown): 'bold' | 'dim' | undefined {
 }
 
 /** Splits a flattened Text style into its text part and its layout (box) part. */
-export function splitTextStyle(style: TextStyle | undefined): { text: TextStyle; layout: ViewStyle } {
+export function splitTextStyle(style: TextStyle | undefined): {
+  text: TextStyle;
+  layout: ViewStyle;
+} {
   const text: Record<string, unknown> = {};
   const layout: Record<string, unknown> = {};
   if (style) {
@@ -114,13 +117,19 @@ const colorProp = (component: string, key: string, raw: unknown) => {
 };
 
 /** Translates the text part of a flattened React Native style into Ink `<Text>` props. */
-export function resolveTextStyle(style: TextStyle | undefined, component = 'Text'): ResolvedTextStyle {
+export function resolveTextStyle(
+  style: TextStyle | undefined,
+  component = 'Text',
+): ResolvedTextStyle {
   const result: ResolvedTextStyle = { ink: {}, dim: false, hidden: false };
   if (!style) return result;
 
   for (const key of IGNORED_TEXT_KEYS) {
     if (style[key] !== undefined) {
-      warnOnce(`${component}:${key}`, `${component} style "${key}" is not supported in terminals and was ignored.`);
+      warnOnce(
+        `${component}:${key}`,
+        `${component} style "${key}" is not supported in terminals and was ignored.`,
+      );
     }
   }
 
@@ -148,7 +157,12 @@ export function resolveTextStyle(style: TextStyle | undefined, component = 'Text
 
   if (style.textTransform !== undefined) {
     const value = style.textTransform;
-    if (value === 'none' || value === 'uppercase' || value === 'lowercase' || value === 'capitalize') {
+    if (
+      value === 'none' ||
+      value === 'uppercase' ||
+      value === 'lowercase' ||
+      value === 'capitalize'
+    ) {
       result.transform = value;
     }
   }
@@ -169,7 +183,10 @@ export function resolveTextStyle(style: TextStyle | undefined, component = 'Text
 }
 
 const capitalize = (text: string) =>
-  text.replace(/(^|[^\p{L}\p{N}'])(\p{L})/gu, (_match, before: string, letter: string) => before + letter.toUpperCase());
+  text.replace(
+    /(^|[^\p{L}\p{N}'])(\p{L})/gu,
+    (_match, before: string, letter: string) => before + letter.toUpperCase(),
+  );
 
 /** Applies `textTransform` to a string. */
 export function applyTextTransform(text: string, transform: TextTransform | undefined): string {

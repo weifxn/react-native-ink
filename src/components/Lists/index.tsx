@@ -84,7 +84,8 @@ interface CommonListProps extends Omit<ScrollViewProps, 'ref' | 'children'> {
   /** @remarks Ignored. */
   getItemLayout?: (data: any, index: number) => { length: number; offset: number; index: number };
   /** @remarks Ignored. */
-  onViewableItemsChanged?: ((info: { viewableItems: ViewToken[]; changed: ViewToken[] }) => void) | null;
+  onViewableItemsChanged?:
+    ((info: { viewableItems: ViewToken[]; changed: ViewToken[] }) => void) | null;
   /** @remarks Ignored. */
   viewabilityConfig?: unknown;
   /** @remarks Ignored. */
@@ -195,9 +196,16 @@ function ListBase(props: ListBaseProps) {
           current = current.parentNode;
         }
         const viewport = scroll.getScrollableNode()?.yogaNode;
-        const cellSize = horizontal ? (node.yogaNode?.getComputedWidth() ?? 0) : (node.yogaNode?.getComputedHeight() ?? 0);
-        const viewportSize = horizontal ? (viewport?.getComputedWidth() ?? 0) : (viewport?.getComputedHeight() ?? 0);
-        const position = (horizontal ? x : y) - (params.viewPosition ?? 0) * (viewportSize - cellSize) - (params.viewOffset ?? 0);
+        const cellSize = horizontal
+          ? (node.yogaNode?.getComputedWidth() ?? 0)
+          : (node.yogaNode?.getComputedHeight() ?? 0);
+        const viewportSize = horizontal
+          ? (viewport?.getComputedWidth() ?? 0)
+          : (viewport?.getComputedHeight() ?? 0);
+        const position =
+          (horizontal ? x : y) -
+          (params.viewPosition ?? 0) * (viewportSize - cellSize) -
+          (params.viewOffset ?? 0);
         scroll.scrollTo(horizontal ? { x: position } : { y: position });
       },
       scrollToOffset(offset) {
@@ -208,14 +216,10 @@ function ListBase(props: ListBaseProps) {
     [horizontal],
   );
 
-  useImperativeHandle(
-    listRef,
-    () => {
-      const scroll = scrollRef.current;
-      return scroll ? Object.assign(scroll, methods(api)) : null;
-    },
-    [api, methods],
-  );
+  useImperativeHandle(listRef, () => {
+    const scroll = scrollRef.current;
+    return scroll ? Object.assign(scroll, methods(api)) : null;
+  }, [api, methods]);
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -282,7 +286,9 @@ function ListBase(props: ListBaseProps) {
       onContentSizeChange={handleContentSizeChange}
       refreshControl={
         scrollProps.refreshControl ??
-        (onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} /> : undefined)
+        (onRefresh ? (
+          <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} />
+        ) : undefined)
       }
     >
       {children}
@@ -327,7 +333,11 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
       key,
       id: indexToId(start),
       node:
-        columns > 1 ? <View style={[{ flexDirection: 'row' }, columnWrapperStyle]}>{cells}</View> : cells[0],
+        columns > 1 ? (
+          <View style={[{ flexDirection: 'row' }, columnWrapperStyle]}>{cells}</View>
+        ) : (
+          cells[0]
+        ),
     });
     if (ItemSeparatorComponent && start + columns < items.length) {
       rows.push({
@@ -366,14 +376,22 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
   );
 }
 
-export interface VirtualizedListProps<ItemT> extends Omit<FlatListProps<ItemT>, 'data' | 'numColumns'> {
+export interface VirtualizedListProps<ItemT> extends Omit<
+  FlatListProps<ItemT>,
+  'data' | 'numColumns'
+> {
   data?: any;
   getItem: (data: any, index: number) => ItemT;
   getItemCount: (data: any) => number;
 }
 
 /** The base list in React Native; items come from `getItem`/`getItemCount`. */
-export function VirtualizedList<ItemT>({ data, getItem, getItemCount, ...props }: VirtualizedListProps<ItemT>) {
+export function VirtualizedList<ItemT>({
+  data,
+  getItem,
+  getItemCount,
+  ...props
+}: VirtualizedListProps<ItemT>) {
   const count = getItemCount(data);
   const items = Array.from({ length: count }, (_, index) => getItem(data, index));
   return <FlatList {...props} data={items} />;
@@ -389,9 +407,13 @@ export interface SectionBase<ItemT, SectionT = DefaultSectionT> {
   keyExtractor?: (item: ItemT, index: number) => string;
 }
 
-export type SectionListData<ItemT, SectionT = DefaultSectionT> = SectionBase<ItemT, SectionT> & SectionT;
+export type SectionListData<ItemT, SectionT = DefaultSectionT> = SectionBase<ItemT, SectionT> &
+  SectionT;
 
-export interface SectionListRenderItemInfo<ItemT, SectionT = DefaultSectionT> extends ListRenderItemInfo<ItemT> {
+export interface SectionListRenderItemInfo<
+  ItemT,
+  SectionT = DefaultSectionT,
+> extends ListRenderItemInfo<ItemT> {
   section: SectionListData<ItemT, SectionT>;
 }
 export type SectionListRenderItem<ItemT, SectionT = DefaultSectionT> = (
@@ -405,8 +427,12 @@ export interface SectionListInstance extends FlatListInstance {
 export interface SectionListProps<ItemT, SectionT = DefaultSectionT> extends CommonListProps {
   sections: ReadonlyArray<SectionListData<ItemT, SectionT>>;
   renderItem?: SectionListRenderItem<ItemT, SectionT>;
-  renderSectionHeader?: (info: { section: SectionListData<ItemT, SectionT> }) => ReactElement | null;
-  renderSectionFooter?: (info: { section: SectionListData<ItemT, SectionT> }) => ReactElement | null;
+  renderSectionHeader?: (info: {
+    section: SectionListData<ItemT, SectionT>;
+  }) => ReactElement | null;
+  renderSectionFooter?: (info: {
+    section: SectionListData<ItemT, SectionT>;
+  }) => ReactElement | null;
   /** Rendered at the top and bottom of each section. */
   SectionSeparatorComponent?: ComponentType<any> | null;
   keyExtractor?: (item: ItemT, index: number) => string;
@@ -414,7 +440,9 @@ export interface SectionListProps<ItemT, SectionT = DefaultSectionT> extends Com
 }
 
 /** A list grouped into sections with optional headers and footers. */
-export function SectionList<ItemT, SectionT = DefaultSectionT>(props: SectionListProps<ItemT, SectionT>) {
+export function SectionList<ItemT, SectionT = DefaultSectionT>(
+  props: SectionListProps<ItemT, SectionT>,
+) {
   const {
     sections,
     renderItem,
@@ -432,7 +460,10 @@ export function SectionList<ItemT, SectionT = DefaultSectionT>(props: SectionLis
     const header = renderSectionHeader?.({ section });
     if (header) rows.push({ key: `${sectionKey}:header`, id: `${sectionIndex}:-1`, node: header });
     if (SectionSeparatorComponent && section.data.length > 0) {
-      rows.push({ key: `${sectionKey}:top`, node: <SectionSeparatorComponent section={section} /> });
+      rows.push({
+        key: `${sectionKey}:top`,
+        node: <SectionSeparatorComponent section={section} />,
+      });
     }
     const extract = section.keyExtractor ?? keyExtractor ?? defaultKeyExtractor;
     const render = section.renderItem ?? renderItem;
@@ -445,11 +476,17 @@ export function SectionList<ItemT, SectionT = DefaultSectionT>(props: SectionLis
         node: render ? render({ item, index, section, separators }) : null,
       });
       if (Separator && index < section.data.length - 1) {
-        rows.push({ key: `${key}:separator`, node: <Separator highlighted={false} leadingItem={item} section={section} /> });
+        rows.push({
+          key: `${key}:separator`,
+          node: <Separator highlighted={false} leadingItem={item} section={section} />,
+        });
       }
     });
     if (SectionSeparatorComponent && section.data.length > 0) {
-      rows.push({ key: `${sectionKey}:bottom`, node: <SectionSeparatorComponent section={section} /> });
+      rows.push({
+        key: `${sectionKey}:bottom`,
+        node: <SectionSeparatorComponent section={section} />,
+      });
     }
     const footer = renderSectionFooter?.({ section });
     if (footer) rows.push({ key: `${sectionKey}:footer`, node: footer });
@@ -457,7 +494,11 @@ export function SectionList<ItemT, SectionT = DefaultSectionT>(props: SectionLis
 
   const methods = useCallback(
     (api: ListApi) => ({
-      scrollToLocation: ({ sectionIndex, itemIndex, ...params }: { sectionIndex: number; itemIndex: number } & ScrollToParams) =>
+      scrollToLocation: ({
+        sectionIndex,
+        itemIndex,
+        ...params
+      }: { sectionIndex: number; itemIndex: number } & ScrollToParams) =>
         api.scrollToId(`${sectionIndex}:${itemIndex}`, params),
       scrollToOffset: ({ offset }: { offset: number }) => api.scrollToOffset(offset),
       recordInteraction() {},
@@ -471,6 +512,8 @@ export function SectionList<ItemT, SectionT = DefaultSectionT>(props: SectionLis
 }
 
 /** React Native's base for SectionList. */
-export function VirtualizedSectionList<ItemT, SectionT = DefaultSectionT>(props: SectionListProps<ItemT, SectionT>) {
+export function VirtualizedSectionList<ItemT, SectionT = DefaultSectionT>(
+  props: SectionListProps<ItemT, SectionT>,
+) {
   return <SectionList {...props} />;
 }

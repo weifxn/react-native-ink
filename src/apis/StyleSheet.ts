@@ -36,5 +36,8 @@ export const StyleSheet = {
     if (style1 && style2) return [style1, style2] as StyleProp<U | V>;
     return (style1 || style2) as StyleProp<U | V>;
   },
-  setStyleAttributePreprocessor(_property: string, _process: (nextProp: unknown) => unknown): void {},
+  setStyleAttributePreprocessor(
+    _property: string,
+    _process: (nextProp: unknown) => unknown,
+  ): void {},
 };

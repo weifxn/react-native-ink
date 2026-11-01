@@ -13,13 +13,21 @@ import {
   TouchableWithoutFeedback,
 } from '../src/components/Touchable/index.js';
 import { View } from '../src/components/View/index.js';
-import { keys, press, renderInteractive, renderText, tick } from './helpers.js';
+import { keys, press, renderInteractive, renderText, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
 });
 
-const Item = ({ label, onPress, disabled }: { label: string; onPress?: () => void; disabled?: boolean }) => (
+const Item = ({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress?: () => void;
+  disabled?: boolean;
+}) => (
   <Pressable onPress={onPress} disabled={disabled}>
     {({ focused, pressed }) => (
       <Text>
@@ -40,15 +48,15 @@ describe('focus model', () => {
       </View>,
     );
     await tick();
-    expect(lastFrame()).toBe('  one\n  two\n  three');
+    await waitFor(() => expect(lastFrame()).toBe('  one\n  two\n  three'));
     await press(stdin, keys.tab);
-    expect(lastFrame()).toBe('> one\n  two\n  three');
+    await waitFor(() => expect(lastFrame()).toBe('> one\n  two\n  three'));
     await press(stdin, keys.tab, keys.tab);
-    expect(lastFrame()).toBe('  one\n  two\n> three');
+    await waitFor(() => expect(lastFrame()).toBe('  one\n  two\n> three'));
     await press(stdin, keys.shiftTab);
-    expect(lastFrame()).toBe('  one\n> two\n  three');
+    await waitFor(() => expect(lastFrame()).toBe('  one\n> two\n  three'));
     await press(stdin, keys.escape);
-    expect(lastFrame()).toBe('  one\n  two\n  three');
+    await waitFor(() => expect(lastFrame()).toBe('  one\n  two\n  three'));
   });
 
   it('skips disabled pressables', async () => {
@@ -59,7 +67,7 @@ describe('focus model', () => {
       </View>,
     );
     await press(stdin, keys.tab);
-    expect(lastFrame()).toBe('  one\n> two');
+    await waitFor(() => expect(lastFrame()).toBe('  one\n> two'));
   });
 });
 
@@ -76,10 +84,10 @@ describe('Pressable', () => {
       </Pressable>,
     );
     await press(stdin, keys.tab, keys.enter);
-    expect(calls).toEqual(['in', 'out', 'press:number']);
-    expect(lastFrame()).toBe('pressed');
+    await waitFor(() => expect(calls).toEqual(['in', 'out', 'press:number']));
+    await waitFor(() => expect(lastFrame()).toBe('pressed'));
     await tick(150);
-    expect(lastFrame()).toBe('idle');
+    await waitFor(() => expect(lastFrame()).toBe('idle'));
     await press(stdin, keys.space);
     expect(calls).toHaveLength(6);
   });
@@ -96,7 +104,7 @@ describe('Pressable', () => {
       await tick();
       expect(lastFrame()).not.toContain('\u001b[7m');
       await press(stdin, keys.tab);
-      expect(lastFrame()).toContain('\u001b[7mpress me');
+      await waitFor(() => expect(lastFrame()).toContain('\u001b[7mpress me'));
     } finally {
       chalk.level = previous;
     }
@@ -114,7 +122,7 @@ describe('Pressable', () => {
     );
     await tick();
     await press(stdin, keys.enter);
-    expect(onPress).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onPress).toHaveBeenCalledOnce());
   });
 });
 
@@ -123,9 +131,9 @@ describe('Button', () => {
     const onPress = vi.fn();
     const { stdin, lastFrame } = renderInteractive(<Button title="Save" onPress={onPress} />);
     await tick();
-    expect(lastFrame()).toBe('[ Save ]');
+    await waitFor(() => expect(lastFrame()).toBe('[ Save ]'));
     await press(stdin, keys.tab, keys.enter);
-    expect(onPress).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onPress).toHaveBeenCalledOnce());
   });
 
   it('does not press when disabled', async () => {
@@ -153,12 +161,12 @@ describe('Switch', () => {
     }
     const { stdin, lastFrame } = renderInteractive(<Toggle />);
     await tick();
-    expect(lastFrame()).toBe('[● ]');
+    await waitFor(() => expect(lastFrame()).toBe('[● ]'));
     await press(stdin, keys.tab, keys.space);
-    expect(lastFrame()).toBe('[ ●]');
+    await waitFor(() => expect(lastFrame()).toBe('[ ●]'));
     await press(stdin, keys.enter);
-    expect(lastFrame()).toBe('[● ]');
-    expect(changes).toEqual([true, false]);
+    await waitFor(() => expect(lastFrame()).toBe('[● ]'));
+    await waitFor(() => expect(changes).toEqual([true, false]));
   });
 });
 
@@ -179,7 +187,7 @@ describe('Touchables', () => {
       </View>,
     );
     await press(stdin, keys.tab, keys.enter, keys.tab, keys.enter, keys.tab, keys.enter);
-    expect(calls).toEqual(['opacity', 'highlight', 'without']);
+    await waitFor(() => expect(calls).toEqual(['opacity', 'highlight', 'without']));
   });
 });
 
@@ -188,7 +196,7 @@ describe('pressable Text', () => {
     const onPress = vi.fn();
     const { stdin } = renderInteractive(<Text onPress={onPress}>link</Text>);
     await press(stdin, keys.tab, keys.enter);
-    expect(onPress).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onPress).toHaveBeenCalledOnce());
   });
 });
 

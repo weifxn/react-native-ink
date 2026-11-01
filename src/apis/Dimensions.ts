@@ -26,7 +26,10 @@ export const Dimensions = {
     return sizeOf(currentStdout());
   },
   set(_dims: unknown): void {},
-  addEventListener(_type: 'change', handler: (change: DimensionsChange) => void): EmitterSubscription {
+  addEventListener(
+    _type: 'change',
+    handler: (change: DimensionsChange) => void,
+  ): EmitterSubscription {
     const stream = currentStdout();
     const listener = () => {
       const size = sizeOf(stream);

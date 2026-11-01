@@ -111,7 +111,15 @@ describe('export surface', () => {
   });
 
   it('adds the terminal extensions', () => {
-    for (const name of ['render', 'renderToString', 'useInput', 'useApp', 'useFocus', 'Static', 'Newline']) {
+    for (const name of [
+      'render',
+      'renderToString',
+      'useInput',
+      'useApp',
+      'useFocus',
+      'Static',
+      'Newline',
+    ]) {
       expect((ReactNativeInk as Record<string, unknown>)[name], name).toBeDefined();
     }
   });

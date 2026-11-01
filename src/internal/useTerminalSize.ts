@@ -25,7 +25,9 @@ export function sizeOfStream(stream: { columns?: number; rows?: number }): Termi
  */
 export function useTerminalSize(): TerminalSize {
   const { stdout } = useStdout();
-  const [size, setSize] = useState(() => sizeOfStream(stdout as { columns?: number; rows?: number }));
+  const [size, setSize] = useState(() =>
+    sizeOfStream(stdout as { columns?: number; rows?: number }),
+  );
   useEffect(() => {
     const update = () => {
       const next = sizeOfStream(stdout as { columns?: number; rows?: number });

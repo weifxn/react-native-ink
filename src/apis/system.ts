@@ -10,7 +10,8 @@ export const I18nManager = {
   doLeftAndRightSwapInRTL: true,
   allowRTL(_allowRTL: boolean): void {},
   forceRTL(forceRTL: boolean): void {
-    if (forceRTL) warnOnce('I18nManager.forceRTL', 'Right-to-left layout is not supported in terminals.');
+    if (forceRTL)
+      warnOnce('I18nManager.forceRTL', 'Right-to-left layout is not supported in terminals.');
   },
   swapLeftAndRightInRTL(_flipStyles: boolean): void {},
   getConstants() {
@@ -29,7 +30,10 @@ export type AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus';
 export const AppState = {
   currentState: 'active' as AppStateStatus,
   isAvailable: true,
-  addEventListener(_type: AppStateEvent, _listener: (state: AppStateStatus) => void): EmitterSubscription {
+  addEventListener(
+    _type: AppStateEvent,
+    _listener: (state: AppStateStatus) => void,
+  ): EmitterSubscription {
     return noopSubscription();
   },
 };
@@ -44,7 +48,10 @@ export type KeyboardEventName =
 
 /** There is no on-screen keyboard; `dismiss()` blurs the focused input. */
 export const Keyboard = {
-  addListener(_eventName: KeyboardEventName, _listener: (event: unknown) => void): EmitterSubscription {
+  addListener(
+    _eventName: KeyboardEventName,
+    _listener: (event: unknown) => void,
+  ): EmitterSubscription {
     return noopSubscription();
   },
   removeAllListeners(_eventName?: KeyboardEventName): void {},
@@ -102,7 +109,10 @@ export const Clipboard = {
 };
 
 export type ShareContent = { title?: string; message?: string; url?: string };
-export type ShareAction = { action: 'sharedAction' | 'dismissedAction'; activityType?: string | null };
+export type ShareAction = {
+  action: 'sharedAction' | 'dismissedAction';
+  activityType?: string | null;
+};
 
 /** No share sheet in a terminal: resolves as dismissed. */
 export const Share = {

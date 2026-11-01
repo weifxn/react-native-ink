@@ -1,8 +1,8 @@
 # react-native-ink: technical specification (v0.x)
 
-Status: draft for review · 2026-11-01 · Builds on: Ink 8, React 19.3 · API reference: React Native 0.88
+Status: implemented in 0.1.0 (see §17 for where the implementation differs) · 2026-11-01 · Builds on: Ink 8, React 19.3 · API reference: React Native 0.88
 
-Execution plan and decisions: [PLAN.md](./PLAN.md). The npm name is pending (decision D2); examples here import from `react-native-ink`.
+Execution plan and decisions: [PLAN.md](./PLAN.md). The package is published as `@weifxn/react-native-ink` (decision D2); examples in this spec import from `react-native-ink` for brevity.
 
 ## 1. Purpose
 
@@ -39,7 +39,14 @@ function Hello({ name = 'world' }: { name?: string }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 4, borderColor: '#00aaff', paddingHorizontal: 2, paddingVertical: 1, alignSelf: 'flex-start' },
+  card: {
+    borderWidth: 1,
+    borderRadius: 4,
+    borderColor: '#00aaff',
+    paddingHorizontal: 2,
+    paddingVertical: 1,
+    alignSelf: 'flex-start',
+  },
   title: { color: 'green', fontWeight: 'bold' },
   muted: { color: 'gray' },
 });
@@ -57,9 +64,22 @@ function Todo() {
   const [items, setItems] = useState<string[]>([]);
   return (
     <View style={{ gap: 1 }}>
-      <TextInput autoFocus value={text} onChangeText={setText} placeholder="What needs doing?"
-        submitBehavior="submit" onSubmitEditing={() => { setItems([...items, text]); setText(''); }} />
-      <FlatList data={items} keyExtractor={(_, i) => String(i)} renderItem={({ item }) => <Text>• {item}</Text>} />
+      <TextInput
+        autoFocus
+        value={text}
+        onChangeText={setText}
+        placeholder="What needs doing?"
+        submitBehavior="submit"
+        onSubmitEditing={() => {
+          setItems([...items, text]);
+          setText('');
+        }}
+      />
+      <FlatList
+        data={items}
+        keyExtractor={(_, i) => String(i)}
+        renderItem={({ item }) => <Text>• {item}</Text>}
+      />
       <Button title="Clear" onPress={() => setItems([])} />
     </View>
   );
@@ -68,16 +88,16 @@ function Todo() {
 
 ## 2. Runtime and packaging
 
-| Item | Spec |
-|---|---|
-| Node | `>=22` (Ink 8 requirement) |
-| React | peer `>=19.3.0` |
-| Ink | peer `^8.0.0`, so the app and any `ink-*` libraries share one Ink instance |
-| Module format | **ESM only.** `require()` from CommonJS cannot work: Ink's yoga-layout dependency uses top-level await, so Node throws `ERR_REQUIRE_ASYNC_MODULE` (verified on Node 22). CommonJS callers use `await import()`. |
-| Runtime dependencies | `@react-native/normalize-colors` only; anything more must be justified |
-| Build | `tsc` → `dist/` (ESM JavaScript, `.d.ts`, source maps), no bundler |
-| `package.json` fields | `"type": "module"`, `"exports": { ".": …, "./package.json": … }`, `"sideEffects": false` |
-| License | MIT. Keep the original 650 Industries notice; vendored RN type definitions keep Meta's MIT notice. |
+| Item                  | Spec                                                                                                                                                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node                  | `>=22` (Ink 8 requirement)                                                                                                                                                                                      |
+| React                 | peer `>=19.3.0`                                                                                                                                                                                                 |
+| Ink                   | peer `^8.0.0`, so the app and any `ink-*` libraries share one Ink instance                                                                                                                                      |
+| Module format         | **ESM only.** `require()` from CommonJS cannot work: Ink's yoga-layout dependency uses top-level await, so Node throws `ERR_REQUIRE_ASYNC_MODULE` (verified on Node 22). CommonJS callers use `await import()`. |
+| Runtime dependencies  | `@react-native/normalize-colors` only; anything more must be justified                                                                                                                                          |
+| Build                 | `tsc` → `dist/` (ESM JavaScript, `.d.ts`, source maps), no bundler                                                                                                                                              |
+| `package.json` fields | `"type": "module"`, `"exports": { ".": …, "./package.json": … }`, `"sideEffects": false`                                                                                                                        |
+| License               | MIT. Keep the original 650 Industries notice; vendored RN type definitions keep Meta's MIT notice.                                                                                                              |
 
 ## 3. Architecture
 
@@ -156,36 +176,36 @@ src/
 
 ### 6.1 Layout styles (View, and the outer box of a top-level Text)
 
-| RN style | Terminal behavior | Status |
-|---|---|---|
-| `width`, `height` | cells or % | mapped |
-| `minWidth`, `maxWidth` | cells (no %) | mapped |
-| `minHeight`, `maxHeight` | cells or % | mapped |
-| `aspectRatio` | number or `'a/b'` string | mapped |
-| `flex` | expanded per §4 | mapped |
-| `flexGrow`, `flexShrink`, `flexBasis`, `flexDirection`, `flexWrap` | same | mapped |
-| `justifyContent`, `alignItems`, `alignSelf`, `alignContent` | same values, including `space-evenly` | mapped |
-| `gap`, `rowGap`, `columnGap` | cells | mapped |
+| RN style                                                                                              | Terminal behavior                                                         | Status                |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------- |
+| `width`, `height`                                                                                     | cells or %                                                                | mapped                |
+| `minWidth`, `maxWidth`                                                                                | cells (no %)                                                              | mapped                |
+| `minHeight`, `maxHeight`                                                                              | cells or %                                                                | mapped                |
+| `aspectRatio`                                                                                         | number or `'a/b'` string                                                  | mapped                |
+| `flex`                                                                                                | expanded per §4                                                           | mapped                |
+| `flexGrow`, `flexShrink`, `flexBasis`, `flexDirection`, `flexWrap`                                    | same                                                                      | mapped                |
+| `justifyContent`, `alignItems`, `alignSelf`, `alignContent`                                           | same values, including `space-evenly`                                     | mapped                |
+| `gap`, `rowGap`, `columnGap`                                                                          | cells                                                                     | mapped                |
 | `margin*`: `margin`, `marginHorizontal`/`Vertical`, `marginTop`/`Right`/`Bottom`/`Left`/`Start`/`End` | resolved to 4 sides: a specific side beats its axis, which beats `margin` | mapped (numbers only) |
-| `padding*` (same set as `margin*`) | same | mapped (numbers only) |
-| `position` | `absolute` / `relative` / `static` | mapped |
-| `top`, `right`, `bottom`, `left`, `start`, `end`, `inset` | offsets in cells or % | mapped |
-| `display` | `flex` / `none` (`contents` is ignored) | mapped |
-| `overflow` | `visible` / `hidden`; `scroll` is treated as `hidden` | mapped |
-| `zIndex` | paint order is always tree order | ignored |
-| `direction` | left-to-right only | ignored |
+| `padding*` (same set as `margin*`)                                                                    | same                                                                      | mapped (numbers only) |
+| `position`                                                                                            | `absolute` / `relative` / `static`                                        | mapped                |
+| `top`, `right`, `bottom`, `left`, `start`, `end`, `inset`                                             | offsets in cells or %                                                     | mapped                |
+| `display`                                                                                             | `flex` / `none` (`contents` is ignored)                                   | mapped                |
+| `overflow`                                                                                            | `visible` / `hidden`; `scroll` is treated as `hidden`                     | mapped                |
+| `zIndex`                                                                                              | paint order is always tree order                                          | ignored               |
+| `direction`                                                                                           | left-to-right only                                                        | ignored               |
 
 ### 6.2 Visual styles (View)
 
-| RN style | Terminal behavior | Status |
-|---|---|---|
-| `backgroundColor` | fills the box | mapped |
-| `borderWidth`, `border{Top,Right,Bottom,Left,Start,End}Width` | a side is drawn if its width is > 0; always 1 cell thick | approximated |
-| `borderColor`, `border{Side}Color` | per-side color | mapped |
-| `borderStyle` | glyph set chosen per §6.3 | approximated |
-| `borderRadius` (any corner) | > 0 gives rounded corners | approximated |
-| `opacity` | `< 1` dims all descendant text; `0` hides content but keeps its space | approximated |
-| `shadow*`, `elevation`, `transform`, `filter`, `boxShadow`, `backfaceVisibility`, `cursor`, `pointerEvents` | none | ignored |
+| RN style                                                                                                    | Terminal behavior                                                     | Status       |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------ |
+| `backgroundColor`                                                                                           | fills the box                                                         | mapped       |
+| `borderWidth`, `border{Top,Right,Bottom,Left,Start,End}Width`                                               | a side is drawn if its width is > 0; always 1 cell thick              | approximated |
+| `borderColor`, `border{Side}Color`                                                                          | per-side color                                                        | mapped       |
+| `borderStyle`                                                                                               | glyph set chosen per §6.3                                             | approximated |
+| `borderRadius` (any corner)                                                                                 | > 0 gives rounded corners                                             | approximated |
+| `opacity`                                                                                                   | `< 1` dims all descendant text; `0` hides content but keeps its space | approximated |
+| `shadow*`, `elevation`, `transform`, `filter`, `boxShadow`, `backfaceVisibility`, `cursor`, `pointerEvents` | none                                                                  | ignored      |
 
 ### 6.3 Choosing border glyphs
 
@@ -201,17 +221,17 @@ For terminals without Unicode, an ASCII mode (`TERM=dumb`, or a setting) falls b
 
 ### 6.4 Text styles
 
-| RN style | Terminal behavior | Status |
-|---|---|---|
-| `color` | text color | mapped |
-| `backgroundColor` | background behind the characters | mapped |
-| `fontWeight` | Bold for `bold`, `semibold`, `heavy`, `black` and `600`–`900`. Dim for `thin`, `ultralight`, `light` and `100`–`300`. | approximated |
-| `fontStyle` | `italic` (if the terminal supports it) | mapped |
-| `textDecorationLine` | `underline`, `line-through`, or both | mapped |
-| `textTransform` | `uppercase` / `lowercase` / `capitalize`; inherited by nested Text | mapped |
-| `textAlign` | `left` / `center` / `right` using the measured width; `justify` behaves as `left` | mapped (0.3) |
-| `opacity` | ≤ 0.5 dims the text | approximated |
-| `fontSize`, `fontFamily`, `lineHeight`, `letterSpacing`, `textShadow*`, `textDecorationColor`/`Style`, `verticalAlign`, `writingDirection`, `includeFontPadding`, `fontVariant`, `userSelect` | none | ignored |
+| RN style                                                                                                                                                                                      | Terminal behavior                                                                                                     | Status       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `color`                                                                                                                                                                                       | text color                                                                                                            | mapped       |
+| `backgroundColor`                                                                                                                                                                             | background behind the characters                                                                                      | mapped       |
+| `fontWeight`                                                                                                                                                                                  | Bold for `bold`, `semibold`, `heavy`, `black` and `600`–`900`. Dim for `thin`, `ultralight`, `light` and `100`–`300`. | approximated |
+| `fontStyle`                                                                                                                                                                                   | `italic` (if the terminal supports it)                                                                                | mapped       |
+| `textDecorationLine`                                                                                                                                                                          | `underline`, `line-through`, or both                                                                                  | mapped       |
+| `textTransform`                                                                                                                                                                               | `uppercase` / `lowercase` / `capitalize`; inherited by nested Text                                                    | mapped       |
+| `textAlign`                                                                                                                                                                                   | `left` / `center` / `right` using the measured width; `justify` behaves as `left`                                     | mapped (0.3) |
+| `opacity`                                                                                                                                                                                     | ≤ 0.5 dims the text                                                                                                   | approximated |
+| `fontSize`, `fontFamily`, `lineHeight`, `letterSpacing`, `textShadow*`, `textDecorationColor`/`Style`, `verticalAlign`, `writingDirection`, `includeFontPadding`, `fontVariant`, `userSelect` | none                                                                                                                  | ignored      |
 
 **Inheritance works as in React Native:** a nested `<Text>` inherits its parent Text's text styles, and View styles never cascade into Text.
 
@@ -389,21 +409,21 @@ This is our own implementation, not `ink-text-input`, which lacks uncontrolled m
 
 ### 8.5 Other APIs
 
-| API | Behavior | Milestone |
-|---|---|---|
-| `I18nManager` | `isRTL` is false; `forceRTL`/`allowRTL` warn | 0.1 |
-| `processColor`, `PlatformColor` | see §5 | 0.1 |
-| `AppState` | `currentState` is `'active'`; listeners are no-ops | 0.1 (stub) |
-| `NativeModules`, `TurboModuleRegistry`, `requireNativeComponent`, `UIManager` | throw a descriptive error when used | 0.1 (stub) |
-| `Keyboard` | `dismiss()` blurs the focused input; listeners are no-ops | 0.2 |
-| `Linking` | `openURL` opens with the OS default handler, never through a shell; `canOpenURL`; `getInitialURL` returns `null` | 0.2 |
-| `Appearance`, `useColorScheme` | best guess from the `COLORFGBG` environment variable, else `null`; `setColorScheme` overrides | 0.3 |
-| `BackHandler` | `hardwareBackPress` fires on Esc when no focused component uses it; `exitApp()` exits the app | 0.3 |
-| `AccessibilityInfo` | `isScreenReaderEnabled` reflects Ink's screen-reader mode | 0.3 |
-| `LogBox` | `ignoreLogs` / `ignoreAllLogs` silence our warnings | 0.3 |
-| `Vibration` | `vibrate()` rings the terminal bell | 0.3 |
-| `Animated`, `Easing` | implementation driven from JavaScript | later |
-| `Alert` | dialog built on `Modal` | later |
+| API                                                                           | Behavior                                                                                                         | Milestone  |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------- |
+| `I18nManager`                                                                 | `isRTL` is false; `forceRTL`/`allowRTL` warn                                                                     | 0.1        |
+| `processColor`, `PlatformColor`                                               | see §5                                                                                                           | 0.1        |
+| `AppState`                                                                    | `currentState` is `'active'`; listeners are no-ops                                                               | 0.1 (stub) |
+| `NativeModules`, `TurboModuleRegistry`, `requireNativeComponent`, `UIManager` | throw a descriptive error when used                                                                              | 0.1 (stub) |
+| `Keyboard`                                                                    | `dismiss()` blurs the focused input; listeners are no-ops                                                        | 0.2        |
+| `Linking`                                                                     | `openURL` opens with the OS default handler, never through a shell; `canOpenURL`; `getInitialURL` returns `null` | 0.2        |
+| `Appearance`, `useColorScheme`                                                | best guess from the `COLORFGBG` environment variable, else `null`; `setColorScheme` overrides                    | 0.3        |
+| `BackHandler`                                                                 | `hardwareBackPress` fires on Esc when no focused component uses it; `exitApp()` exits the app                    | 0.3        |
+| `AccessibilityInfo`                                                           | `isScreenReaderEnabled` reflects Ink's screen-reader mode                                                        | 0.3        |
+| `LogBox`                                                                      | `ignoreLogs` / `ignoreAllLogs` silence our warnings                                                              | 0.3        |
+| `Vibration`                                                                   | `vibrate()` rings the terminal bell                                                                              | 0.3        |
+| `Animated`, `Easing`                                                          | implementation driven from JavaScript                                                                            | later      |
+| `Alert`                                                                       | dialog built on `Modal`                                                                                          | later      |
 
 ### 8.6 Full export list (0.1)
 
@@ -430,12 +450,12 @@ The package root re-exports these from Ink, so apps never import `ink` directly 
 
 Accessibility props map onto Ink's screen-reader props:
 
-| React Native | Ink |
-|---|---|
-| `accessibilityLabel` / `aria-label` | `aria-label` |
-| `accessibilityRole` / `role` | `aria-role` (Ink's supported roles: `button`, `checkbox`, `list`, `listitem`, `menu`, `progressbar`, `radio`, `tab`, `textbox`…) |
-| `accessibilityState` and `aria-*` state props | `aria-state` |
-| `accessibilityElementsHidden`, `importantForAccessibility="no-hide-descendants"`, `aria-hidden` | `aria-hidden` |
+| React Native                                                                                    | Ink                                                                                                                              |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `accessibilityLabel` / `aria-label`                                                             | `aria-label`                                                                                                                     |
+| `accessibilityRole` / `role`                                                                    | `aria-role` (Ink's supported roles: `button`, `checkbox`, `list`, `listitem`, `menu`, `progressbar`, `radio`, `tab`, `textbox`…) |
+| `accessibilityState` and `aria-*` state props                                                   | `aria-state`                                                                                                                     |
+| `accessibilityElementsHidden`, `importantForAccessibility="no-hide-descendants"`, `aria-hidden` | `aria-hidden`                                                                                                                    |
 
 These take effect when Ink's screen-reader mode is on, either with `INK_SCREEN_READER=true` or the render option.
 
@@ -464,14 +484,14 @@ Three recipes, each with docs and an example:
 
 ## 14. Testing and quality
 
-| Layer | Tooling | Must cover |
-|---|---|---|
-| Style engine | Vitest, table-driven | every row of §5–6, including precedence and invalid values |
-| Rendering | golden files via `renderToString(…, { columns })`, both plain and `FORCE_COLOR=3` | borders, padding, flex, wrapping, truncation, nesting, colors |
-| Interaction | `ink-testing-library` (verified working with Ink 8) | focus order, pressing, TextInput editing, scrolling |
-| Types | `expect-type` | RN-style code compiles; extensions are typed |
-| Smoke | run each example in a pseudo-terminal in CI | expected text appears; clean exit |
-| CI matrix | GitHub Actions | Node 22, 24 and 26 on Linux; Node 24 on macOS and Windows |
+| Layer        | Tooling                                                                           | Must cover                                                    |
+| ------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Style engine | Vitest, table-driven                                                              | every row of §5–6, including precedence and invalid values    |
+| Rendering    | golden files via `renderToString(…, { columns })`, both plain and `FORCE_COLOR=3` | borders, padding, flex, wrapping, truncation, nesting, colors |
+| Interaction  | `ink-testing-library` (verified working with Ink 8)                               | focus order, pressing, TextInput editing, scrolling           |
+| Types        | `expect-type`                                                                     | RN-style code compiles; extensions are typed                  |
+| Smoke        | run each example in a pseudo-terminal in CI                                       | expected text appears; clean exit                             |
+| CI matrix    | GitHub Actions                                                                    | Node 22, 24 and 26 on Linux; Node 24 on macOS and Windows     |
 
 **Coverage gates:** 100% of lines in the style engine; at least 85% overall.
 
@@ -483,14 +503,29 @@ Three recipes, each with docs and an example:
 
 ## 16. Definition of done
 
-| Criterion | 0.1 (usable) | 0.2 (interactive) | 1.0 |
-|---|---|---|---|
-| Installs and imports as ESM on Node 22+ | ✓ | ✓ | ✓ |
-| View, Text, StyleSheet, AppRegistry, Platform, Dimensions as specified | ✓ | ✓ | ✓ |
-| Full RN export list with typed stubs | ✓ | ✓ | ✓ |
-| Unsupported props warn once and never crash | ✓ | ✓ | ✓ |
-| Pressable family, Button, TextInput, Switch, ActivityIndicator, ScrollView, FlatList | | ✓ | ✓ |
-| Fidelity items (textAlign, opacity, Modal, SectionList…) | | | ✓ |
-| Docs | quickstart + generated compatibility table | + per-component docs | complete |
-| Examples | hello, counter | + form, list | + dashboard, shared code |
-| CI green on the full matrix; npm publish with provenance | ✓ | ✓ | ✓ |
+| Criterion                                                                            | 0.1 (usable)                               | 0.2 (interactive)    | 1.0                      |
+| ------------------------------------------------------------------------------------ | ------------------------------------------ | -------------------- | ------------------------ |
+| Installs and imports as ESM on Node 22+                                              | ✓                                          | ✓                    | ✓                        |
+| View, Text, StyleSheet, AppRegistry, Platform, Dimensions as specified               | ✓                                          | ✓                    | ✓                        |
+| Full RN export list with typed stubs                                                 | ✓                                          | ✓                    | ✓                        |
+| Unsupported props warn once and never crash                                          | ✓                                          | ✓                    | ✓                        |
+| Pressable family, Button, TextInput, Switch, ActivityIndicator, ScrollView, FlatList |                                            | ✓                    | ✓                        |
+| Fidelity items (textAlign, opacity, Modal, SectionList…)                             |                                            |                      | ✓                        |
+| Docs                                                                                 | quickstart + generated compatibility table | + per-component docs | complete                 |
+| Examples                                                                             | hello, counter                             | + form, list         | + dashboard, shared code |
+| CI green on the full matrix; npm publish with provenance                             | ✓                                          | ✓                    | ✓                        |
+
+## 17. Implementation notes
+
+Where the 0.1.0 implementation differs from, or goes beyond, the spec above:
+
+- **Examples** are plain folders run with `tsx` (`npm run example -- <name>`) instead of npm workspaces. `tsconfig` paths map the package name and `react-native` to `src/`.
+- **Text defaults to `flexShrink: 1`**, like react-native-web, so long text wraps inside rows instead of overflowing; View keeps React Native's `flexShrink: 0`.
+- **Percentage and `'auto'` margins, and percentage padding, work.** Ink passes these values to Yoga unchanged, and tests cover it.
+- **ScrollView marks its viewport's Yoga node as `overflow: scroll`,** so content can extend past it along the scroll axis, as in React Native. Ink itself only clips.
+- **Terminal size never spawns processes.** Ink's `useWindowSize` shells out to `tput`/`stty` when the stream reports no size, so an internal hook reads `stdout.columns`/`rows`, then `$COLUMNS`/`$LINES`, then 80×24.
+- **Modal** content renders at the app root, so React context from the Modal's ancestors doesn't reach it. With `AppRegistry`, modals render inside the wrapper component, so wrapper providers do reach them.
+- **Dialogs blank the cells beneath them** using an unrecognized background color name, which Ink fills with plain spaces.
+- **Built earlier than planned:** `Alert` (including `prompt`), `ActionSheetIOS` and `ToastAndroid` (spec: "later") share a dialog host in the app root. `Animated` and `Image` (spec: "later") are also in 0.1.0.
+- **Focus timing:** Ink moves focus at normal React priority. A key pressed within roughly 30–50 ms after a Tab that also scrolls a ScrollView can reach the previously focused component. Normal typing is unaffected.
+- **Still open:** FlatList virtualization, mouse input, an ellipsis on the last line for `numberOfLines > 1`, and nested Text removing a style its parent applied (e.g. `fontWeight: 'normal'` inside bold text).

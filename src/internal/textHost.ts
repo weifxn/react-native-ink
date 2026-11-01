@@ -3,14 +3,19 @@ import type { DOMElement } from 'ink';
 import stringWidth from 'string-width';
 
 /** Ink text wrap modes. */
-export type TextWrap = 'wrap' | 'hard' | 'truncate-end' | 'truncate' | 'truncate-middle' | 'truncate-start';
+export type TextWrap =
+  'wrap' | 'hard' | 'truncate-end' | 'truncate' | 'truncate-middle' | 'truncate-start';
 export type LineTransform = (line: string, index: number) => string;
 
 /**
  * Renders Ink's `ink-text` host element directly (as Ink's own `<Transform>` does) so a text
  * block can have both a wrap mode and a per-line transform applied after wrapping.
  */
-export function textHost(wrap: TextWrap, transform: LineTransform | undefined, children: ReactNode) {
+export function textHost(
+  wrap: TextWrap,
+  transform: LineTransform | undefined,
+  children: ReactNode,
+) {
   return createElement(
     'ink-text' as never,
     {
@@ -49,7 +54,11 @@ export function innerWidth(node: DOMElement | null | undefined): number | undefi
 }
 
 /** Pads a line so it is centered or right-aligned within `width` cells. */
-export function alignLine(line: string, width: number | undefined, align: 'center' | 'right'): string {
+export function alignLine(
+  line: string,
+  width: number | undefined,
+  align: 'center' | 'right',
+): string {
   if (width === undefined) return line;
   const free = Math.floor(width) - visibleWidth(line);
   if (free <= 0) return line;

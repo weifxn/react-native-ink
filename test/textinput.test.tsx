@@ -19,7 +19,7 @@ import {
 import { TextInput, type TextInputInstance } from '../src/components/TextInput/index.js';
 import { Text } from '../src/components/Text/index.js';
 import { View } from '../src/components/View/index.js';
-import { keys, press, renderInteractive, tick } from './helpers.js';
+import { keys, press, renderInteractive, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -45,10 +45,19 @@ describe('editing operations', () => {
   });
 
   it('deletes words and to line boundaries', () => {
-    expect(deleteWordBackward({ value: 'hello big world', cursor: 15 })).toEqual({ value: 'hello big ', cursor: 10 });
+    expect(deleteWordBackward({ value: 'hello big world', cursor: 15 })).toEqual({
+      value: 'hello big ',
+      cursor: 10,
+    });
     expect(moveWordLeft({ value: 'hello big world', cursor: 10 }).cursor).toBe(6);
-    expect(deleteToLineStart({ value: 'one\ntwo three', cursor: 8 })).toEqual({ value: 'one\nthree', cursor: 4 });
-    expect(deleteToLineEnd({ value: 'one two\nx', cursor: 3 })).toEqual({ value: 'one\nx', cursor: 3 });
+    expect(deleteToLineStart({ value: 'one\ntwo three', cursor: 8 })).toEqual({
+      value: 'one\nthree',
+      cursor: 4,
+    });
+    expect(deleteToLineEnd({ value: 'one two\nx', cursor: 3 })).toEqual({
+      value: 'one\nx',
+      cursor: 3,
+    });
   });
 
   it('converts between offsets and cursors', () => {
@@ -70,10 +79,10 @@ describe('TextInput', () => {
     );
     await tick();
     await press(stdin, keys.left, 'b');
-    expect(lastFrame()).toBe('abc');
-    expect(onChangeText).toHaveBeenLastCalledWith('abc');
+    await waitFor(() => expect(lastFrame()).toBe('abc'));
+    await waitFor(() => expect(onChangeText).toHaveBeenLastCalledWith('abc'));
     await press(stdin, keys.end, keys.backspace, keys.home, keys.delete);
-    expect(lastFrame()).toBe('b');
+    await waitFor(() => expect(lastFrame()).toBe('b'));
   });
 
   it('works as a controlled input', async () => {
@@ -89,21 +98,25 @@ describe('TextInput', () => {
     const { stdin, lastFrame } = renderInteractive(<Controlled />);
     await tick();
     await press(stdin, 'hi');
-    expect(lastFrame()).toBe('HI\nvalue=HI');
+    await waitFor(() => expect(lastFrame()).toBe('HI\nvalue=HI'));
   });
 
   it('submits on Enter and blurs by default', async () => {
     const onSubmitEditing = vi.fn();
     const onBlur = vi.fn();
     const { stdin, lastFrame } = renderInteractive(
-      <TextInput autoFocus onSubmitEditing={(event) => onSubmitEditing(event.nativeEvent.text)} onBlur={onBlur} />,
+      <TextInput
+        autoFocus
+        onSubmitEditing={(event) => onSubmitEditing(event.nativeEvent.text)}
+        onBlur={onBlur}
+      />,
     );
     await tick();
     await press(stdin, 'done', keys.enter);
-    expect(onSubmitEditing).toHaveBeenCalledWith('done');
-    expect(onBlur).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onSubmitEditing).toHaveBeenCalledWith('done'));
+    await waitFor(() => expect(onBlur).toHaveBeenCalledOnce());
     await press(stdin, 'x');
-    expect(lastFrame()).toBe('done');
+    await waitFor(() => expect(lastFrame()).toBe('done'));
   });
 
   it("keeps focus with submitBehavior='submit'", async () => {
@@ -113,15 +126,15 @@ describe('TextInput', () => {
     );
     await tick();
     await press(stdin, 'a', keys.enter, 'b');
-    expect(onSubmitEditing).toHaveBeenCalledOnce();
-    expect(lastFrame()).toBe('ab');
+    await waitFor(() => expect(onSubmitEditing).toHaveBeenCalledOnce());
+    await waitFor(() => expect(lastFrame()).toBe('ab'));
   });
 
   it('inserts newlines when multiline', async () => {
     const { stdin, lastFrame } = renderInteractive(<TextInput autoFocus multiline />);
     await tick();
     await press(stdin, 'one', keys.enter, 'two', keys.up, 'X');
-    expect(lastFrame()).toBe('oneX\ntwo');
+    await waitFor(() => expect(lastFrame()).toBe('oneX\ntwo'));
   });
 
   it('masks secure entry and shows placeholders', async () => {
@@ -131,29 +144,33 @@ describe('TextInput', () => {
       </View>,
     );
     await tick();
-    expect(lastFrame()).toBe('Password');
+    await waitFor(() => expect(lastFrame()).toBe('Password'));
     await press(stdin, keys.tab, 'secret');
-    expect(lastFrame()).toBe('••••••');
+    await waitFor(() => expect(lastFrame()).toBe('••••••'));
   });
 
   it('limits length and reports key presses', async () => {
     const pressed: string[] = [];
     const { stdin, lastFrame } = renderInteractive(
-      <TextInput autoFocus maxLength={3} onKeyPress={(event) => pressed.push(event.nativeEvent.key)} />,
+      <TextInput
+        autoFocus
+        maxLength={3}
+        onKeyPress={(event) => pressed.push(event.nativeEvent.key)}
+      />,
     );
     await tick();
     await press(stdin, 'a', 'b', 'c', 'd', keys.backspace);
-    expect(lastFrame()).toBe('ab');
-    expect(pressed).toEqual(['a', 'b', 'c', 'd', 'Backspace']);
+    await waitFor(() => expect(lastFrame()).toBe('ab'));
+    await waitFor(() => expect(pressed).toEqual(['a', 'b', 'c', 'd', 'Backspace']));
   });
 
   it('supports Ctrl+W, Ctrl+U and bracketed paste', async () => {
     const { stdin, lastFrame } = renderInteractive(<TextInput autoFocus />);
     await tick();
     await press(stdin, 'hello world', keys.ctrlW);
-    expect(lastFrame()).toBe('hello');
+    await waitFor(() => expect(lastFrame()).toBe('hello'));
     await press(stdin, keys.ctrlU, '\u001B[200~pasted\ntext\u001B[201~');
-    expect(lastFrame()).toBe('pasted text');
+    await waitFor(() => expect(lastFrame()).toBe('pasted text'));
   });
 
   it('moves focus between inputs with Tab', async () => {
@@ -165,7 +182,7 @@ describe('TextInput', () => {
     );
     await tick();
     await press(stdin, keys.tab, 'a', keys.tab, 'b');
-    expect(lastFrame()).toBe('a\nb');
+    await waitFor(() => expect(lastFrame()).toBe('a\nb'));
   });
 
   it('scrolls single-line inputs to keep the cursor visible', async () => {
@@ -177,10 +194,10 @@ describe('TextInput', () => {
     await tick();
     await press(stdin, 'abcdefghijklmnop');
     await tick();
-    expect(lastFrame()).toBe('hijklmnop');
+    await waitFor(() => expect(lastFrame()).toBe('hijklmnop'));
     await press(stdin, keys.home);
     await tick();
-    expect(lastFrame()).toBe('abcdefghij');
+    await waitFor(() => expect(lastFrame()).toBe('abcdefghij'));
   });
 
   it('draws the cursor in inverse video', async () => {
@@ -190,7 +207,7 @@ describe('TextInput', () => {
       const { stdin, lastFrame } = renderInteractive(<TextInput autoFocus defaultValue="ab" />);
       await tick();
       await press(stdin, keys.left);
-      expect(lastFrame()).toContain('a\u001b[7mb\u001b[27m');
+      await waitFor(() => expect(lastFrame()).toContain('a\u001b[7mb\u001b[27m'));
     } finally {
       chalk.level = previous;
     }
@@ -201,16 +218,16 @@ describe('TextInput', () => {
     const { lastFrame } = renderInteractive(<TextInput ref={handle} defaultValue="text" />);
     await tick();
     const input = handle.current!;
-    expect(input.isFocused()).toBe(false);
+    await waitFor(() => expect(input.isFocused()).toBe(false));
     input.focus();
     await tick();
-    expect(input.isFocused()).toBe(true);
-    expect(TextInput.State.currentlyFocusedInput()).toBe(input);
+    await waitFor(() => expect(input.isFocused()).toBe(true));
+    await waitFor(() => expect(TextInput.State.currentlyFocusedInput()).toBe(input));
     input.clear();
     await tick();
-    expect(lastFrame()).toBe('');
+    await waitFor(() => expect(lastFrame()).toBe(''));
     input.blur();
     await tick();
-    expect(input.isFocused()).toBe(false);
+    await waitFor(() => expect(input.isFocused()).toBe(false));
   });
 });

@@ -79,7 +79,9 @@ describe('AppRegistry', () => {
   });
 
   it('throws for unknown apps', () => {
-    expect(() => AppRegistry.runApplication('missing')).toThrow(/"missing" has not been registered/);
+    expect(() => AppRegistry.runApplication('missing')).toThrow(
+      /"missing" has not been registered/,
+    );
   });
 
   it('supports runnables and configs', () => {

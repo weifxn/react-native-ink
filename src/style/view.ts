@@ -93,7 +93,14 @@ const TEXT_ONLY = new Set([
 const ENUMS: Record<string, readonly string[]> = {
   flexDirection: ['row', 'column', 'row-reverse', 'column-reverse'],
   flexWrap: ['wrap', 'nowrap', 'wrap-reverse'],
-  justifyContent: ['flex-start', 'flex-end', 'center', 'space-between', 'space-around', 'space-evenly'],
+  justifyContent: [
+    'flex-start',
+    'flex-end',
+    'center',
+    'space-between',
+    'space-around',
+    'space-evenly',
+  ],
   alignItems: ['flex-start', 'flex-end', 'center', 'stretch', 'baseline'],
   alignSelf: ['auto', 'flex-start', 'flex-end', 'center', 'stretch', 'baseline'],
   alignContent: [
@@ -111,7 +118,9 @@ const ENUMS: Record<string, readonly string[]> = {
 const PERCENT = /^-?\d+(\.\d+)?%$/;
 
 const isAnimated = (value: unknown): value is { __getValue(): unknown } =>
-  typeof value === 'object' && value !== null && typeof (value as { __getValue?: unknown }).__getValue === 'function';
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { __getValue?: unknown }).__getValue === 'function';
 
 /** Resolves `Animated` nodes that ended up in a plain style. */
 export const unwrap = (value: unknown): unknown => (isAnimated(value) ? value.__getValue() : value);
@@ -207,7 +216,10 @@ function parseAspectRatio(component: string, raw: unknown): number | undefined {
       return ratio;
     }
   }
-  warnOnce(`${component}:aspectRatio:invalid`, `${component} style "aspectRatio" has an invalid value and was ignored.`);
+  warnOnce(
+    `${component}:aspectRatio:invalid`,
+    `${component} style "aspectRatio" has an invalid value and was ignored.`,
+  );
   return undefined;
 }
 
@@ -219,7 +231,10 @@ function gap(component: string, key: string, raw: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  warnOnce(`${component}:${key}:invalid`, `${component} style "${key}" must be a number of cells and was ignored.`);
+  warnOnce(
+    `${component}:${key}:invalid`,
+    `${component} style "${key}" must be a number of cells and was ignored.`,
+  );
   return undefined;
 }
 
@@ -298,7 +313,10 @@ export function resolveViewStyle(
   for (const key of Object.keys(s)) {
     if (s[key] === undefined || skipKeys?.has(key) || TEXT_ONLY.has(key)) continue;
     if (classifyUnhandled(key) === 'ignored') {
-      warnOnce(`${component}:${key}`, `${component} style "${key}" is not supported in terminals and was ignored.`);
+      warnOnce(
+        `${component}:${key}`,
+        `${component} style "${key}" is not supported in terminals and was ignored.`,
+      );
       continue;
     }
     if (
@@ -308,7 +326,10 @@ export function resolveViewStyle(
     ) {
       continue;
     }
-    warnOnce(`${component}:${key}`, `${component} style "${key}" is not a known style property and was ignored.`);
+    warnOnce(
+      `${component}:${key}`,
+      `${component} style "${key}" is not a known style property and was ignored.`,
+    );
   }
 
   // Enumerated layout props.
@@ -318,7 +339,10 @@ export function resolveViewStyle(
     if (typeof value === 'string' && allowed.includes(value)) {
       box[key] = value;
     } else {
-      warnOnce(`${component}:${key}:invalid`, `${component} style "${key}" has an invalid value (${String(value)}) and was ignored.`);
+      warnOnce(
+        `${component}:${key}:invalid`,
+        `${component} style "${key}" has an invalid value (${String(value)}) and was ignored.`,
+      );
     }
   }
 
@@ -373,7 +397,11 @@ export function resolveViewStyle(
   // Display and overflow.
   if (s.display !== undefined) {
     if (s.display === 'flex' || s.display === 'none') box.display = s.display;
-    else warnOnce(`${component}:display:${String(s.display)}`, `${component} style display "${String(s.display)}" is not supported and was ignored.`);
+    else
+      warnOnce(
+        `${component}:display:${String(s.display)}`,
+        `${component} style display "${String(s.display)}" is not supported and was ignored.`,
+      );
   }
   if (s.overflow !== undefined) {
     if (s.overflow === 'visible' || s.overflow === 'hidden') box.overflow = s.overflow;

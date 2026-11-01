@@ -64,15 +64,20 @@ function colorToRgba(value: string): string {
 function validate(config: InterpolationConfigType) {
   const { inputRange, outputRange } = config;
   if (inputRange.length < 2 || inputRange.length !== outputRange.length) {
-    throw new Error('interpolate: inputRange and outputRange must have the same length (at least 2).');
+    throw new Error(
+      'interpolate: inputRange and outputRange must have the same length (at least 2).',
+    );
   }
   for (let i = 1; i < inputRange.length; i++) {
-    if (inputRange[i]! < inputRange[i - 1]!) throw new Error('interpolate: inputRange must be monotonically non-decreasing.');
+    if (inputRange[i]! < inputRange[i - 1]!)
+      throw new Error('interpolate: inputRange must be monotonically non-decreasing.');
   }
 }
 
 /** React Native's interpolation: numbers, colors, or strings containing numbers (`'0deg'`, `'50%'`). */
-export function createInterpolation(config: InterpolationConfigType): (input: number) => number | string {
+export function createInterpolation(
+  config: InterpolationConfigType,
+): (input: number) => number | string {
   validate(config);
   const { inputRange } = config;
   const easing = config.easing ?? linear;
@@ -81,7 +86,9 @@ export function createInterpolation(config: InterpolationConfigType): (input: nu
 
   if (typeof config.outputRange[0] === 'string') {
     const strings = (config.outputRange as readonly string[]).map(colorToRgba);
-    const isColor = (config.outputRange as readonly string[]).every((value) => normalizeColor(value) !== null);
+    const isColor = (config.outputRange as readonly string[]).every(
+      (value) => normalizeColor(value) !== null,
+    );
     const numbers = strings.map((value) => (value.match(NUMBER) ?? []).map(Number));
     const channels = numbers[0]!.map((_, index) =>
       createInterpolation({ ...config, outputRange: numbers.map((list) => list[index] ?? 0) }),

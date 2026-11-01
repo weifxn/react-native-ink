@@ -36,18 +36,30 @@ describe('interpolation', () => {
     const extend = createInterpolation({ inputRange: [0, 1], outputRange: [0, 100] });
     expect(extend(0.5)).toBe(50);
     expect(extend(2)).toBe(200);
-    const clamp = createInterpolation({ inputRange: [0, 1], outputRange: [0, 100], extrapolate: 'clamp' });
+    const clamp = createInterpolation({
+      inputRange: [0, 1],
+      outputRange: [0, 100],
+      extrapolate: 'clamp',
+    });
     expect(clamp(2)).toBe(100);
     expect(clamp(-1)).toBe(0);
-    const identity = createInterpolation({ inputRange: [0, 1], outputRange: [0, 100], extrapolateRight: 'identity' });
+    const identity = createInterpolation({
+      inputRange: [0, 1],
+      outputRange: [0, 100],
+      extrapolateRight: 'identity',
+    });
     expect(identity(5)).toBe(5);
     const segments = createInterpolation({ inputRange: [0, 1, 2], outputRange: [0, 10, 0] });
     expect(segments(1.5)).toBe(5);
   });
 
   it('interpolates strings and colors', () => {
-    expect(createInterpolation({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })(0.25)).toBe('90deg');
-    expect(createInterpolation({ inputRange: [0, 1], outputRange: ['0%', '100%'] })(0.5)).toBe('50%');
+    expect(createInterpolation({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })(0.25)).toBe(
+      '90deg',
+    );
+    expect(createInterpolation({ inputRange: [0, 1], outputRange: ['0%', '100%'] })(0.5)).toBe(
+      '50%',
+    );
     expect(createInterpolation({ inputRange: [0, 1], outputRange: ['red', 'blue'] })(0.5)).toBe(
       'rgba(128, 0, 128, 1)',
     );
@@ -110,14 +122,25 @@ describe('Animated values', () => {
 describe('animations', () => {
   it('runs timing animations to completion', async () => {
     const value = new Animated.Value(0);
-    const result = await run(Animated.timing(value, { toValue: 10, duration: 60, easing: Easing.linear, useNativeDriver: false }));
+    const result = await run(
+      Animated.timing(value, {
+        toValue: 10,
+        duration: 60,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    );
     expect(result.finished).toBe(true);
     expect(value.__getValue()).toBe(10);
   });
 
   it('reports finished: false when stopped', async () => {
     const value = new Animated.Value(0);
-    const animation = Animated.timing(value, { toValue: 10, duration: 1000, useNativeDriver: false });
+    const animation = Animated.timing(value, {
+      toValue: 10,
+      duration: 1000,
+      useNativeDriver: false,
+    });
     const pending = run(animation);
     await tick(50);
     animation.stop();
@@ -129,10 +152,14 @@ describe('animations', () => {
 
   it('settles springs and decays', async () => {
     const value = new Animated.Value(0);
-    await run(Animated.spring(value, { toValue: 1, stiffness: 1000, damping: 100, useNativeDriver: false }));
+    await run(
+      Animated.spring(value, { toValue: 1, stiffness: 1000, damping: 100, useNativeDriver: false }),
+    );
     expect(value.__getValue()).toBe(1);
     const decaying = new Animated.Value(0);
-    const result = await run(Animated.decay(decaying, { velocity: 0.5, deceleration: 0.9, useNativeDriver: false }));
+    const result = await run(
+      Animated.decay(decaying, { velocity: 0.5, deceleration: 0.9, useNativeDriver: false }),
+    );
     expect(result.finished).toBe(true);
     expect(decaying.__getValue()).toBeGreaterThan(0);
   });
@@ -158,20 +185,28 @@ describe('animations', () => {
       ]),
     );
     expect([a.__getValue(), b.__getValue()]).toEqual([2, 2]);
-    await run(Animated.stagger(10, [Animated.timing(a, { toValue: 3, duration: 10, useNativeDriver: false })]));
+    await run(
+      Animated.stagger(10, [
+        Animated.timing(a, { toValue: 3, duration: 10, useNativeDriver: false }),
+      ]),
+    );
     expect(a.__getValue()).toBe(3);
     let iterations = 0;
     const looped = new Animated.Value(0);
     looped.addListener(({ value }) => value === 1 && iterations++);
     await run(
-      Animated.loop(Animated.timing(looped, { toValue: 1, duration: 10, useNativeDriver: false }), { iterations: 2 }),
+      Animated.loop(Animated.timing(looped, { toValue: 1, duration: 10, useNativeDriver: false }), {
+        iterations: 2,
+      }),
     );
     expect(iterations).toBe(2);
   });
 
   it('animates ValueXY and Color channels', async () => {
     const position = new Animated.ValueXY();
-    await run(Animated.timing(position, { toValue: { x: 5, y: -5 }, duration: 20, useNativeDriver: false }));
+    await run(
+      Animated.timing(position, { toValue: { x: 5, y: -5 }, duration: 20, useNativeDriver: false }),
+    );
     expect(position.__getValue()).toEqual({ x: 5, y: -5 });
     const color = new Animated.Color('black');
     await run(Animated.timing(color, { toValue: 'white', duration: 20, useNativeDriver: false }));
@@ -212,9 +247,7 @@ describe('animated components', () => {
     try {
       const opacity = new Animated.Value(1);
       const { lastFrame } = renderInteractive(
-        <Animated.Text style={{ opacity }}>
-          fade
-        </Animated.Text>,
+        <Animated.Text style={{ opacity }}>fade</Animated.Text>,
       );
       await tick();
       expect(lastFrame()).toBe('fade');

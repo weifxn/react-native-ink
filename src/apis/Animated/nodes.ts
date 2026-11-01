@@ -27,7 +27,9 @@ export abstract class AnimatedNode {
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }
 
-  interpolate<OutputT extends number | string>(config: InterpolationConfigType<OutputT>): AnimatedInterpolation<OutputT> {
+  interpolate<OutputT extends number | string>(
+    config: InterpolationConfigType<OutputT>,
+  ): AnimatedInterpolation<OutputT> {
     return new AnimatedInterpolation(this, config);
   }
 
@@ -158,7 +160,10 @@ export class AnimatedValueXY extends AnimatedNode {
   x: AnimatedValue;
   y: AnimatedValue;
 
-  constructor(value?: { x: number | AnimatedValue; y: number | AnimatedValue }, config?: { useNativeDriver?: boolean }) {
+  constructor(
+    value?: { x: number | AnimatedValue; y: number | AnimatedValue },
+    config?: { useNativeDriver?: boolean },
+  ) {
     super();
     const initial = value ?? { x: 0, y: 0 };
     this.x = initial.x instanceof AnimatedValue ? initial.x : new AnimatedValue(initial.x, config);
@@ -222,7 +227,12 @@ function parseColor(value: string | RGBA): RGBA {
   const int = normalizeColor(value);
   if (int === null) return { r: 0, g: 0, b: 0, a: 1 };
   const rgba = int >>> 0;
-  return { r: (rgba >>> 24) & 255, g: (rgba >>> 16) & 255, b: (rgba >>> 8) & 255, a: (rgba & 255) / 255 };
+  return {
+    r: (rgba >>> 24) & 255,
+    g: (rgba >>> 16) & 255,
+    b: (rgba >>> 8) & 255,
+    a: (rgba & 255) / 255,
+  };
 }
 
 /** An animatable color (`Animated.Color`). */
@@ -242,7 +252,8 @@ export class AnimatedColor extends AnimatedNode {
   }
 
   __getValue(): string {
-    const channel = (value: AnimatedValue) => Math.round(Math.min(255, Math.max(0, value.__getValue())));
+    const channel = (value: AnimatedValue) =>
+      Math.round(Math.min(255, Math.max(0, value.__getValue())));
     const alpha = Math.min(1, Math.max(0, this.a.__getValue()));
     return `rgba(${channel(this.r)}, ${channel(this.g)}, ${channel(this.b)}, ${alpha})`;
   }
@@ -288,7 +299,9 @@ export class AnimatedColor extends AnimatedNode {
 export { parseColor };
 
 /** A value mapped through `interpolate()`. */
-export class AnimatedInterpolation<OutputT extends number | string = number | string> extends AnimatedNode {
+export class AnimatedInterpolation<
+  OutputT extends number | string = number | string,
+> extends AnimatedNode {
   #parent: AnimatedNode;
   #interpolate: (input: number) => number | string;
 
@@ -308,7 +321,8 @@ export class AnimatedInterpolation<OutputT extends number | string = number | st
 }
 
 type Operand = AnimatedNode | number;
-const valueOf = (operand: Operand): number => (typeof operand === 'number' ? operand : Number(operand.__getValue()));
+const valueOf = (operand: Operand): number =>
+  typeof operand === 'number' ? operand : Number(operand.__getValue());
 
 /** Arithmetic on animated values (`Animated.add`, `subtract`, ...). */
 export class AnimatedOperation extends AnimatedNode {
@@ -328,7 +342,9 @@ export class AnimatedOperation extends AnimatedNode {
   }
 
   override __getParents(): AnimatedNode[] {
-    return [this.#a, this.#b].filter((operand): operand is AnimatedNode => typeof operand !== 'number');
+    return [this.#a, this.#b].filter(
+      (operand): operand is AnimatedNode => typeof operand !== 'number',
+    );
   }
 }
 

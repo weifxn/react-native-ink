@@ -39,7 +39,11 @@ export interface NativeScrollEvent {
 }
 
 export interface ScrollViewInstance extends HostInstance {
-  scrollTo(options?: { x?: number; y?: number; animated?: boolean } | number, x?: number, animated?: boolean): void;
+  scrollTo(
+    options?: { x?: number; y?: number; animated?: boolean } | number,
+    x?: number,
+    animated?: boolean,
+  ): void;
   scrollToEnd(options?: { animated?: boolean }): void;
   flashScrollIndicators(): void;
   getScrollResponder(): ScrollViewInstance;
@@ -111,11 +115,20 @@ interface IndicatorProps {
 function ScrollIndicator({ horizontal, size, contentSize, offset, focused }: IndicatorProps) {
   if (size <= 0 || contentSize <= size) return null;
   const unicode = isUnicodeSupported();
-  const [track, thumb] = horizontal ? (unicode ? ['─', '━'] : ['-', '=']) : unicode ? ['│', '┃'] : ['|', '#'];
+  const [track, thumb] = horizontal
+    ? unicode
+      ? ['─', '━']
+      : ['-', '=']
+    : unicode
+      ? ['│', '┃']
+      : ['|', '#'];
   const thumbSize = Math.max(1, Math.round((size * size) / contentSize));
   const maxOffset = contentSize - size;
   const thumbStart = Math.round(((size - thumbSize) * offset) / maxOffset);
-  const cells = Array.from({ length: size }, (_, index) => index >= thumbStart && index < thumbStart + thumbSize);
+  const cells = Array.from(
+    { length: size },
+    (_, index) => index >= thumbStart && index < thumbStart + thumbSize,
+  );
   const color = focused ? 'cyan' : undefined;
   if (horizontal) {
     return (
@@ -214,7 +227,10 @@ export function ScrollView(props: ScrollViewProps) {
       relayout();
     }
   });
-  const [offset, setOffset] = useState<NativeScrollPoint>({ x: contentOffset?.x ?? 0, y: contentOffset?.y ?? 0 });
+  const [offset, setOffset] = useState<NativeScrollPoint>({
+    x: contentOffset?.x ?? 0,
+    y: contentOffset?.y ?? 0,
+  });
 
   const maxX = Math.max(0, content.width - viewport.width);
   const maxY = Math.max(0, content.height - viewport.height);
@@ -293,35 +309,32 @@ export function ScrollView(props: ScrollViewProps) {
           if (rect.x < position.x) scrollTo(rect.x);
           else if (rect.x + rect.width > position.x + width) scrollTo(rect.x + rect.width - width);
         } else if (rect.y < position.y) scrollTo(undefined, rect.y);
-        else if (rect.y + rect.height > position.y + height) scrollTo(undefined, rect.y + rect.height - height);
+        else if (rect.y + rect.height > position.y + height)
+          scrollTo(undefined, rect.y + rect.height - height);
       },
     }),
     [horizontal, scrollTo],
   );
 
-  useImperativeHandle(
-    ref,
-    () => {
-      const node = outerRef.current;
-      if (!node) return null as unknown as ScrollViewInstance;
-      const instance = Object.assign(attachNativeMethods(node), {
-        scrollTo(options?: { x?: number; y?: number } | number, x?: number) {
-          if (typeof options === 'number') scrollTo(x, options);
-          else scrollTo(options?.x, options?.y);
-        },
-        scrollToEnd() {
-          if (horizontal) scrollTo(live.current.maxX);
-          else scrollTo(undefined, live.current.maxY);
-        },
-        flashScrollIndicators() {},
-        getScrollResponder: () => instance,
-        getScrollableNode: () => viewportRef.current,
-        getInnerViewNode: () => contentRef.current,
-      }) as ScrollViewInstance;
-      return instance;
-    },
-    [horizontal, scrollTo],
-  );
+  useImperativeHandle(ref, () => {
+    const node = outerRef.current;
+    if (!node) return null as unknown as ScrollViewInstance;
+    const instance = Object.assign(attachNativeMethods(node), {
+      scrollTo(options?: { x?: number; y?: number } | number, x?: number) {
+        if (typeof options === 'number') scrollTo(x, options);
+        else scrollTo(options?.x, options?.y);
+      },
+      scrollToEnd() {
+        if (horizontal) scrollTo(live.current.maxX);
+        else scrollTo(undefined, live.current.maxY);
+      },
+      flashScrollIndicators() {},
+      getScrollResponder: () => instance,
+      getScrollableNode: () => viewportRef.current,
+      getInnerViewNode: () => contentRef.current,
+    }) as ScrollViewInstance;
+    return instance;
+  }, [horizontal, scrollTo]);
 
   const refreshing = isValidElement(refreshControl) && Boolean(refreshControl.props.refreshing);
   const showIndicator = horizontal ? showsHorizontalScrollIndicator : showsVerticalScrollIndicator;
@@ -345,7 +358,10 @@ export function ScrollView(props: ScrollViewProps) {
         >
           <ScrollIntoViewContext.Provider value={scrollIntoView}>
             <View
-              style={[{ flexShrink: 0, flexDirection: horizontal ? 'row' : 'column' }, contentContainerStyle]}
+              style={[
+                { flexShrink: 0, flexDirection: horizontal ? 'row' : 'column' },
+                contentContainerStyle,
+              ]}
               boxRef={contentRef}
               component="ScrollView contentContainerStyle"
             >

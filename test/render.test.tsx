@@ -41,7 +41,14 @@ describe('View layout', () => {
   it('lays out rows with justifyContent and partial borders', () => {
     expect(
       renderText(
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 20, borderBottomWidth: 1 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            width: 20,
+            borderBottomWidth: 1,
+          }}
+        >
           <Text>left</Text>
           <Text>right</Text>
         </View>,
@@ -124,9 +131,11 @@ describe('View layout', () => {
     expect(
       renderText(
         <Text>
-          before <View>
+          before{' '}
+          <View>
             <Text>inside</Text>
-          </View> after
+          </View>{' '}
+          after
         </Text>,
       ),
     ).toBe('before inside after');
@@ -264,17 +273,21 @@ describe('Text styling (ANSI)', () => {
         </View>,
       ),
     ).toBe('\u001b[2mdim\u001b[22m');
-    expect(renderColored(<Text style={{ fontWeight: '300' }}>light</Text>)).toBe('\u001b[2mlight\u001b[22m');
+    expect(renderColored(<Text style={{ fontWeight: '300' }}>light</Text>)).toBe(
+      '\u001b[2mlight\u001b[22m',
+    );
   });
 
   it('uses truecolor for CSS colors and the palette for ANSI names', () => {
-    expect(renderColored(<Text style={{ color: 'orange' }}>o</Text>)).toBe('\u001b[38;2;255;165;0mo\u001b[39m');
+    expect(renderColored(<Text style={{ color: 'orange' }}>o</Text>)).toBe(
+      '\u001b[38;2;255;165;0mo\u001b[39m',
+    );
     expect(renderColored(<Text style={{ color: 'red' }}>r</Text>)).toBe('\u001b[31mr\u001b[39m');
   });
 
   it('underlines and strikes through', () => {
-    expect(renderColored(<Text style={{ textDecorationLine: 'underline line-through' }}>x</Text>)).toBe(
-      '\u001b[9m\u001b[4mx\u001b[24m\u001b[29m',
-    );
+    expect(
+      renderColored(<Text style={{ textDecorationLine: 'underline line-through' }}>x</Text>),
+    ).toBe('\u001b[9m\u001b[4mx\u001b[24m\u001b[29m');
   });
 });

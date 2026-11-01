@@ -67,7 +67,10 @@ const sideWidth = (style: ViewStyle, keys: ReadonlyArray<keyof ViewStyle>, compo
       continue;
     }
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      warnOnce(`${component}:${String(key)}:invalid`, `${component} style "${String(key)}" must be a number.`);
+      warnOnce(
+        `${component}:${String(key)}:invalid`,
+        `${component} style "${String(key)}" must be a number.`,
+      );
       return 0;
     }
     return value;
@@ -106,7 +109,10 @@ const sideColor = (
 const hasRadius = (style: ViewStyle): boolean =>
   BORDER_RADIUS_KEYS.some((key) => {
     const value = (style as Record<string, unknown>)[key];
-    return (typeof value === 'number' && value > 0) || (typeof value === 'string' && parseFloat(value) > 0);
+    return (
+      (typeof value === 'number' && value > 0) ||
+      (typeof value === 'string' && parseFloat(value) > 0)
+    );
   });
 
 /**
@@ -147,7 +153,11 @@ export function resolveBorders(style: ViewStyle, options: BorderOptions): Record
   }
 
   const colors: Record<Side, { color?: string; transparent: boolean }> = {
-    top: sideColor(style, ['borderTopColor', 'borderBlockStartColor', 'borderBlockColor', 'borderColor'], component),
+    top: sideColor(
+      style,
+      ['borderTopColor', 'borderBlockStartColor', 'borderBlockColor', 'borderColor'],
+      component,
+    ),
     right: sideColor(style, ['borderEndColor', 'borderRightColor', 'borderColor'], component),
     bottom: sideColor(
       style,

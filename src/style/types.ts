@@ -70,12 +70,7 @@ export interface FlexStyle {
   flexWrap?: 'wrap' | 'nowrap' | 'wrap-reverse';
   height?: DimensionValue;
   justifyContent?:
-    | 'flex-start'
-    | 'flex-end'
-    | 'center'
-    | 'space-between'
-    | 'space-around'
-    | 'space-evenly';
+    'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
   left?: DimensionValue;
   margin?: DimensionValue;
   marginBlock?: DimensionValue;
@@ -320,10 +315,7 @@ export interface RecursiveArray<T> extends ReadonlyArray<T | RecursiveArray<T>> 
 /** Legacy numeric style handle; accepted for type compatibility only. */
 export type RegisteredStyle<T> = number & { __registeredStyleBrand: T };
 export type StyleProp<T> =
-  | T
-  | RegisteredStyle<T>
-  | RecursiveArray<T | RegisteredStyle<T> | Falsy>
-  | Falsy;
+  T | RegisteredStyle<T> | RecursiveArray<T | RegisteredStyle<T> | Falsy> | Falsy;
 
 /** Any style object accepted by `StyleSheet`. */
 export type AnyStyle = ViewStyle | TextStyle | ImageStyle;

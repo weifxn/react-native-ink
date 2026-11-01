@@ -18,12 +18,20 @@ export const DevMenu = {
 export const DevSettings = {
   addMenuItem(_title: string, _handler: () => unknown): void {},
   reload(_reason?: string): void {
-    warnOnce('DevSettings.reload', 'DevSettings.reload is not supported; restart the process instead.');
+    warnOnce(
+      'DevSettings.reload',
+      'DevSettings.reload is not supported; restart the process instead.',
+    );
   },
   onFastRefresh(): void {},
 };
 
-type LayoutAnimationConfig = { duration: number; create?: object; update?: object; delete?: object };
+type LayoutAnimationConfig = {
+  duration: number;
+  create?: object;
+  update?: object;
+  delete?: object;
+};
 
 const preset = (duration: number): LayoutAnimationConfig => ({ duration });
 
@@ -75,7 +83,9 @@ export const PermissionsAndroid = {
     return Promise.resolve('denied');
   },
   requestMultiple(permissions: string[]): Promise<Record<string, 'denied'>> {
-    return Promise.resolve(Object.fromEntries(permissions.map((permission) => [permission, 'denied'])));
+    return Promise.resolve(
+      Object.fromEntries(permissions.map((permission) => [permission, 'denied'])),
+    );
   },
 };
 

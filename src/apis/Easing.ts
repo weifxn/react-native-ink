@@ -15,8 +15,10 @@ const SAMPLE_STEP = 1 / (SPLINE_TABLE_SIZE - 1);
 const a = (a1: number, a2: number) => 1 - 3 * a2 + 3 * a1;
 const b = (a1: number, a2: number) => 3 * a2 - 6 * a1;
 const c = (a1: number) => 3 * a1;
-const calcBezier = (t: number, a1: number, a2: number) => ((a(a1, a2) * t + b(a1, a2)) * t + c(a1)) * t;
-const getSlope = (t: number, a1: number, a2: number) => 3 * a(a1, a2) * t * t + 2 * b(a1, a2) * t + c(a1);
+const calcBezier = (t: number, a1: number, a2: number) =>
+  ((a(a1, a2) * t + b(a1, a2)) * t + c(a1)) * t;
+const getSlope = (t: number, a1: number, a2: number) =>
+  3 * a(a1, a2) * t * t + 2 * b(a1, a2) * t + c(a1);
 
 function bezier(x1: number, y1: number, x2: number, y2: number): EasingFunction {
   if (!(x1 >= 0 && x1 <= 1 && x2 >= 0 && x2 <= 1)) {
@@ -80,7 +82,10 @@ export const Easing = {
   ease: (t: number): number => ease(t),
   quad: (t: number): number => t * t,
   cubic: (t: number): number => t * t * t,
-  poly: (n: number): EasingFunction => (t) => Math.pow(t, n),
+  poly:
+    (n: number): EasingFunction =>
+    (t) =>
+      Math.pow(t, n),
   sin: (t: number): number => 1 - Math.cos((t * Math.PI) / 2),
   circle: (t: number): number => 1 - Math.sqrt(1 - t * t),
   exp: (t: number): number => Math.pow(2, 10 * (t - 1)),
@@ -106,7 +111,12 @@ export const Easing = {
   },
   bezier,
   in: (easing: EasingFunction): EasingFunction => easing,
-  out: (easing: EasingFunction): EasingFunction => (t) => 1 - easing(1 - t),
-  inOut: (easing: EasingFunction): EasingFunction => (t) =>
-    t < 0.5 ? easing(t * 2) / 2 : 1 - easing((1 - t) * 2) / 2,
+  out:
+    (easing: EasingFunction): EasingFunction =>
+    (t) =>
+      1 - easing(1 - t),
+  inOut:
+    (easing: EasingFunction): EasingFunction =>
+    (t) =>
+      t < 0.5 ? easing(t * 2) / 2 : 1 - easing((1 - t) * 2) / 2,
 };

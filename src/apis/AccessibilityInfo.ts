@@ -6,7 +6,9 @@ const no = (): Promise<boolean> => Promise.resolve(false);
 /** Reflects Ink's screen-reader mode (`INK_SCREEN_READER=true` or the render option). */
 export const AccessibilityInfo = {
   isScreenReaderEnabled(): Promise<boolean> {
-    return Promise.resolve(currentRoot()?.isScreenReaderEnabled ?? process.env.INK_SCREEN_READER === 'true');
+    return Promise.resolve(
+      currentRoot()?.isScreenReaderEnabled ?? process.env.INK_SCREEN_READER === 'true',
+    );
   },
   isAccessibilityServiceEnabled: no,
   isBoldTextEnabled: no,
@@ -22,7 +24,10 @@ export const AccessibilityInfo = {
   },
   setAccessibilityFocus(_reactTag: number): void {},
   announceForAccessibility(_announcement: string): void {},
-  announceForAccessibilityWithOptions(_announcement: string, _options: { queue?: boolean }): void {},
+  announceForAccessibilityWithOptions(
+    _announcement: string,
+    _options: { queue?: boolean },
+  ): void {},
   getRecommendedTimeoutMillis(originalTimeout: number): Promise<number> {
     return Promise.resolve(originalTimeout);
   },

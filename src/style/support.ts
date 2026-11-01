@@ -99,9 +99,12 @@ export const STYLE_SUPPORT: Readonly<Record<string, StyleSupport>> = Object.from
     'maxHeight',
   ]),
   ...entries('layout', 'mapped', "A number or an 'a/b' ratio string", ['aspectRatio']),
-  ...entries('layout', 'mapped', "Expanded like React Native's Yoga: flex > 0 grows from a 0 basis", [
-    'flex',
-  ]),
+  ...entries(
+    'layout',
+    'mapped',
+    "Expanded like React Native's Yoga: flex > 0 grows from a 0 basis",
+    ['flex'],
+  ),
   ...entries('layout', 'mapped', 'Same as React Native', [
     'flexGrow',
     'flexShrink',
@@ -122,9 +125,16 @@ export const STYLE_SUPPORT: Readonly<Record<string, StyleSupport>> = Object.from
   ),
   ...entries('layout', 'mapped', 'Cells or percentages; same precedence as margins', paddingKeys),
   ...entries('layout', 'mapped', "'absolute', 'relative' or 'static'", ['position']),
-  ...entries('layout', 'mapped', 'Offsets in cells or percentages; start/end map to left/right', insetKeys),
+  ...entries(
+    'layout',
+    'mapped',
+    'Offsets in cells or percentages; start/end map to left/right',
+    insetKeys,
+  ),
   ...entries('layout', 'mapped', "'flex' or 'none' ('contents' is ignored)", ['display']),
-  ...entries('layout', 'mapped', "'visible' or 'hidden'; 'scroll' behaves as 'hidden'", ['overflow']),
+  ...entries('layout', 'mapped', "'visible' or 'hidden'; 'scroll' behaves as 'hidden'", [
+    'overflow',
+  ]),
   ...entries('layout', 'ignored', 'Paint order is always tree order', ['zIndex']),
   ...entries('layout', 'ignored', 'Layout is always left-to-right', ['direction']),
   ...entries('layout', 'ignored', 'Sizes always include padding and border', ['boxSizing']),
@@ -143,10 +153,18 @@ export const STYLE_SUPPORT: Readonly<Record<string, StyleSupport>> = Object.from
     "'solid', 'dashed' and 'dotted' pick a glyph set; Ink names ('double', 'round', 'bold', ...) are also accepted",
     ['borderStyle'],
   ),
-  ...entries('view', 'approximated', 'Any radius above 0 draws rounded corners', BORDER_RADIUS_KEYS),
-  ...entries('view', 'approximated', 'Below 1 dims descendant text and borders; 0 hides content but keeps its space', [
-    'opacity',
-  ]),
+  ...entries(
+    'view',
+    'approximated',
+    'Any radius above 0 draws rounded corners',
+    BORDER_RADIUS_KEYS,
+  ),
+  ...entries(
+    'view',
+    'approximated',
+    'Below 1 dims descendant text and borders; 0 hides content but keeps its space',
+    ['opacity'],
+  ),
   ...entries(
     'view',
     'approximated',
@@ -182,14 +200,19 @@ export const STYLE_SUPPORT: Readonly<Record<string, StyleSupport>> = Object.from
   // Text
   ...entries('text', 'mapped', 'Text color', ['color']),
   ...entries('text', 'mapped', "'italic' (if the terminal supports it)", ['fontStyle']),
-  ...entries('text', 'approximated', 'Bold for bold/600+, dim for light/300 and below', ['fontWeight']),
+  ...entries('text', 'approximated', 'Bold for bold/600+, dim for light/300 and below', [
+    'fontWeight',
+  ]),
   ...entries('text', 'mapped', "'underline', 'line-through' or both", ['textDecorationLine']),
   ...entries('text', 'mapped', 'uppercase / lowercase / capitalize; inherited by nested Text', [
     'textTransform',
   ]),
-  ...entries('text', 'mapped', "left / center / right of the Text's box ('justify' behaves as 'left')", [
-    'textAlign',
-  ]),
+  ...entries(
+    'text',
+    'mapped',
+    "left / center / right of the Text's box ('justify' behaves as 'left')",
+    ['textAlign'],
+  ),
   ...entries('text', 'ignored', 'Terminals use a single font size and family', [
     'fontFamily',
     'fontSize',

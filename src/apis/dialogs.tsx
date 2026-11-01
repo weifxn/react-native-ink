@@ -95,7 +95,10 @@ export const Alert = {
   ): void {
     const buttons: AlertButton[] =
       typeof callbackOrButtons === 'function'
-        ? [{ text: 'Cancel', style: 'cancel' }, { text: 'OK', onPress: callbackOrButtons, isPreferred: true }]
+        ? [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'OK', onPress: callbackOrButtons, isPreferred: true },
+          ]
         : callbackOrButtons?.length
           ? callbackOrButtons
           : [{ text: 'OK' }];
@@ -128,7 +131,10 @@ let actionSheetId: number | undefined;
 
 /** Shows a vertical list of options; the callback receives the chosen index. */
 export const ActionSheetIOS = {
-  showActionSheetWithOptions(options: ActionSheetIOSOptions, callback: (buttonIndex: number) => void): void {
+  showActionSheetWithOptions(
+    options: ActionSheetIOSOptions,
+    callback: (buttonIndex: number) => void,
+  ): void {
     const destructive = new Set(
       Array.isArray(options.destructiveButtonIndex)
         ? options.destructiveButtonIndex
@@ -147,10 +153,18 @@ export const ActionSheetIOS = {
         .filter(({ index }) => !disabled.has(index))
         .map(({ text, index }) => ({
           text,
-          style: index === options.cancelButtonIndex ? 'cancel' : destructive.has(index) ? 'destructive' : 'default',
+          style:
+            index === options.cancelButtonIndex
+              ? 'cancel'
+              : destructive.has(index)
+                ? 'destructive'
+                : 'default',
           onPress: () => callback(index),
         })),
-      onCancel: options.cancelButtonIndex !== undefined ? () => callback(options.cancelButtonIndex!) : undefined,
+      onCancel:
+        options.cancelButtonIndex !== undefined
+          ? () => callback(options.cancelButtonIndex!)
+          : undefined,
     });
   },
   showShareActionSheetWithOptions(
@@ -188,14 +202,23 @@ function Dialog({ request }: { request: DialogRequest }) {
     }
   };
   const preferred = request.buttons.findIndex((button) => button.isPreferred);
-  const focusIndex = preferred !== -1 ? preferred : request.vertical ? 0 : request.buttons.length - 1;
-  const submit = () => choose(request.buttons[preferred !== -1 ? preferred : request.buttons.length - 1]);
+  const focusIndex =
+    preferred !== -1 ? preferred : request.vertical ? 0 : request.buttons.length - 1;
+  const submit = () =>
+    choose(request.buttons[preferred !== -1 ? preferred : request.buttons.length - 1]);
 
   return (
     <Modal transparent visible onRequestClose={requestClose}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <View
-          style={{ borderWidth: 1, borderRadius: 1, paddingHorizontal: 2, paddingVertical: 1, minWidth: 24, maxWidth: '80%' }}
+          style={{
+            borderWidth: 1,
+            borderRadius: 1,
+            paddingHorizontal: 2,
+            paddingVertical: 1,
+            minWidth: 24,
+            maxWidth: '80%',
+          }}
           overrideBox={{ backgroundColor: CLEAR_BACKGROUND }}
         >
           {request.title ? <Text style={{ fontWeight: 'bold' }}>{request.title}</Text> : null}
@@ -286,7 +309,13 @@ export const ToastAndroid = {
   showWithGravity(message: string, duration: number, _gravity: number): void {
     ToastAndroid.show(message, duration);
   },
-  showWithGravityAndOffset(message: string, duration: number, _gravity: number, _x: number, _y: number): void {
+  showWithGravityAndOffset(
+    message: string,
+    duration: number,
+    _gravity: number,
+    _x: number,
+    _y: number,
+  ): void {
     ToastAndroid.show(message, duration);
   },
 };

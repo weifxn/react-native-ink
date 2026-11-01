@@ -78,7 +78,9 @@ describe('decoding', () => {
     const raw = { width: 3, height: 2, data: Buffer.alloc(3 * 2 * 4, 200) };
     const jpg = jpeg.encode(raw, 90).data;
     expect(await decodeBytes(new Uint8Array(jpg))).toMatchObject({ width: 3, height: 2 });
-    await expect(decodeBytes(new Uint8Array([1, 2, 3, 4]))).rejects.toThrow(/Unsupported image format/);
+    await expect(decodeBytes(new Uint8Array([1, 2, 3, 4]))).rejects.toThrow(
+      /Unsupported image format/,
+    );
   });
 });
 
@@ -90,11 +92,17 @@ describe('Image', () => {
     );
     await tick(100);
     expect(lastFrame()).toBe(`${RED_ROW}\n${BLUE_ROW}`);
-    expect(onLoad.mock.calls[0]?.[0].nativeEvent.source).toEqual({ width: 2, height: 4, uri: RED_OVER_BLUE });
+    expect(onLoad.mock.calls[0]?.[0].nativeEvent.source).toEqual({
+      width: 2,
+      height: 4,
+      uri: RED_OVER_BLUE,
+    });
   });
 
   it('derives the height from the aspect ratio', async () => {
-    const { lastFrame } = renderInteractive(<Image source={RED_OVER_BLUE as never} style={{ width: 2 }} />);
+    const { lastFrame } = renderInteractive(
+      <Image source={RED_OVER_BLUE as never} style={{ width: 2 }} />,
+    );
     await tick(100);
     expect(lastFrame()?.split('\n')).toHaveLength(2);
   });
@@ -102,7 +110,12 @@ describe('Image', () => {
   it('shows alt text and calls onError when loading fails', async () => {
     const onError = vi.fn();
     const { lastFrame } = renderInteractive(
-      <Image source={{ uri: '/does/not/exist.png' }} alt="logo" style={{ width: 8, height: 1 }} onError={onError} />,
+      <Image
+        source={{ uri: '/does/not/exist.png' }}
+        alt="logo"
+        style={{ width: 8, height: 1 }}
+        onError={onError}
+      />,
     );
     await tick(100);
     expect(lastFrame()).toContain('logo');
@@ -115,7 +128,9 @@ describe('Image', () => {
     await Image.getSize(RED_OVER_BLUE, success);
     expect(success).toHaveBeenCalledWith(2, 4);
     await expect(Image.prefetch(RED_OVER_BLUE)).resolves.toBe(true);
-    await expect(Image.queryCache([RED_OVER_BLUE, 'other'])).resolves.toEqual({ [RED_OVER_BLUE]: 'memory' });
+    await expect(Image.queryCache([RED_OVER_BLUE, 'other'])).resolves.toEqual({
+      [RED_OVER_BLUE]: 'memory',
+    });
   });
 
   it('draws children over an ImageBackground', async () => {

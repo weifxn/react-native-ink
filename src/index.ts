@@ -31,7 +31,10 @@ export type {
   RefreshControlProps,
   DrawerLayoutAndroidProps,
 } from './components/simple.js';
-export { TextAncestorContext as unstable_TextAncestorContext, RootTagContext } from './internal/contexts.js';
+export {
+  TextAncestorContext as unstable_TextAncestorContext,
+  RootTagContext,
+} from './internal/contexts.js';
 export { Pressable } from './components/Pressable/index.js';
 export type {
   PressableProps,
@@ -56,7 +59,10 @@ export type { ButtonProps } from './components/Button/index.js';
 export { Switch } from './components/Switch/index.js';
 export type { SwitchProps, SwitchChangeEvent } from './components/Switch/index.js';
 export { ActivityIndicator, ProgressBarAndroid } from './components/ActivityIndicator/index.js';
-export type { ActivityIndicatorProps, ProgressBarAndroidProps } from './components/ActivityIndicator/index.js';
+export type {
+  ActivityIndicatorProps,
+  ProgressBarAndroidProps,
+} from './components/ActivityIndicator/index.js';
 export { TextInput } from './components/TextInput/index.js';
 export type {
   TextInputProps,
@@ -69,8 +75,17 @@ export type {
   TextInputSelectionChangeEvent,
 } from './components/TextInput/index.js';
 export { ScrollView } from './components/ScrollView/index.js';
-export type { ScrollViewProps, ScrollViewInstance, NativeScrollEvent } from './components/ScrollView/index.js';
-export { FlatList, VirtualizedList, SectionList, VirtualizedSectionList } from './components/Lists/index.js';
+export type {
+  ScrollViewProps,
+  ScrollViewInstance,
+  NativeScrollEvent,
+} from './components/ScrollView/index.js';
+export {
+  FlatList,
+  VirtualizedList,
+  SectionList,
+  VirtualizedSectionList,
+} from './components/Lists/index.js';
 export { Modal } from './components/Modal/index.js';
 export type { ModalProps } from './components/Modal/index.js';
 export { Image, ImageBackground } from './components/Image/index.js';
@@ -125,9 +140,19 @@ export {
 export type { EmitterSubscription, EventSubscription } from './apis/EventEmitter.js';
 export { Linking } from './apis/Linking.js';
 export { Alert, ActionSheetIOS, ToastAndroid } from './apis/dialogs.js';
-export type { AlertButton, AlertOptions, AlertType, ActionSheetIOSOptions } from './apis/dialogs.js';
+export type {
+  AlertButton,
+  AlertOptions,
+  AlertType,
+  ActionSheetIOSOptions,
+} from './apis/dialogs.js';
 export { BackHandler } from './apis/BackHandler.js';
-export { Animated, useAnimatedValue, useAnimatedValueXY, useAnimatedColor } from './apis/Animated/index.js';
+export {
+  Animated,
+  useAnimatedValue,
+  useAnimatedValueXY,
+  useAnimatedColor,
+} from './apis/Animated/index.js';
 export { Easing } from './apis/Easing.js';
 export type { EasingFunction } from './apis/Easing.js';
 export { AccessibilityInfo } from './apis/AccessibilityInfo.js';
@@ -141,7 +166,12 @@ export {
   Share,
   Settings,
 } from './apis/system.js';
-export type { AppStateStatus, KeyboardEventName, ShareAction, ShareContent } from './apis/system.js';
+export type {
+  AppStateStatus,
+  KeyboardEventName,
+  ShareAction,
+  ShareContent,
+} from './apis/system.js';
 export {
   NativeModules,
   TurboModuleRegistry,

@@ -5,8 +5,12 @@ import { AppContent, ModalOutlet } from '../internal/modalHost.js';
 import { allocateRootTag, render } from '../render.js';
 
 export type ComponentProvider = () => ComponentType<any>;
-export type ComponentProviderInstrumentationHook = (component: ComponentProvider) => ComponentType<any>;
-export type WrapperComponentProvider = (appParameters: any) => ComponentType<any> | null | undefined;
+export type ComponentProviderInstrumentationHook = (
+  component: ComponentProvider,
+) => ComponentType<any>;
+export type WrapperComponentProvider = (
+  appParameters: any,
+) => ComponentType<any> | null | undefined;
 export type Runnable = (appParameters: AppParameters) => unknown;
 
 export interface AppConfig {
@@ -54,9 +58,18 @@ function buildElement(
   );
 }
 
-function runComponent(appKey: string, componentProvider: ComponentProvider, parameters: AppParameters = {}) {
+function runComponent(
+  appKey: string,
+  componentProvider: ComponentProvider,
+  parameters: AppParameters = {},
+) {
   const { initialProps = {}, rootTag = allocateRootTag(), ...renderOptions } = parameters;
-  const instance = render(buildElement(componentProvider, initialProps, rootTag), renderOptions, rootTag, false);
+  const instance = render(
+    buildElement(componentProvider, initialProps, rootTag),
+    renderOptions,
+    rootTag,
+    false,
+  );
   instances.set(rootTag, { appKey, instance });
   instance.waitUntilExit().then(
     () => instances.delete(rootTag),
@@ -76,7 +89,11 @@ const notRegistered = (appKey: string) =>
 
 /** React Native's `AppRegistry`: the entry point for running an app in the terminal. */
 export const AppRegistry = {
-  registerComponent(appKey: string, componentProvider: ComponentProvider, section?: boolean): string {
+  registerComponent(
+    appKey: string,
+    componentProvider: ComponentProvider,
+    section?: boolean,
+  ): string {
     const registration: Registration = {
       componentProvider,
       run: (parameters) => runComponent(appKey, componentProvider, parameters),
@@ -126,7 +143,11 @@ export const AppRegistry = {
    * Renders a registered app in the terminal and returns the Ink instance (an extension:
    * React Native returns nothing). Errors from the app set `process.exitCode = 1`.
    */
-  runApplication(appKey: string, appParameters: AppParameters = {}, _displayMode?: number): AppInstance {
+  runApplication(
+    appKey: string,
+    appParameters: AppParameters = {},
+    _displayMode?: number,
+  ): AppInstance {
     const registration = runnables.get(appKey);
     if (!registration) throw notRegistered(appKey);
     return registration.run(appParameters) as AppInstance;
@@ -137,10 +158,17 @@ export const AppRegistry = {
     const registration = runnables.get(appKey);
     if (!registration?.componentProvider) throw notRegistered(appKey);
     for (const [rootTag, entry] of instances) {
-      if (entry.appKey === appKey && (appParameters.rootTag === undefined || appParameters.rootTag === rootTag)) {
+      if (
+        entry.appKey === appKey &&
+        (appParameters.rootTag === undefined || appParameters.rootTag === rootTag)
+      ) {
         entry.instance.rerender(
           <AppRoot rootTag={rootTag} outlet={false}>
-            {buildElement(registration.componentProvider, appParameters.initialProps ?? {}, rootTag)}
+            {buildElement(
+              registration.componentProvider,
+              appParameters.initialProps ?? {},
+              rootTag,
+            )}
           </AppRoot>,
         );
       }

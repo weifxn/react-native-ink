@@ -12,7 +12,7 @@ import {
   ToastAndroid,
   View,
 } from '../src/index.js';
-import { keys, press, renderInteractive, tick } from './helpers.js';
+import { keys, press, renderInteractive, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -33,11 +33,11 @@ describe('Modal', () => {
     }
     const { stdin, lastFrame } = renderInteractive(<App />);
     await tick();
-    expect(lastFrame()).toContain('modal content');
+    await waitFor(() => expect(lastFrame()).toContain('modal content'));
     expect(lastFrame()).not.toContain('main screen');
     await press(stdin, keys.escape);
     await tick();
-    expect(lastFrame()).toBe('main screen');
+    await waitFor(() => expect(lastFrame()).toBe('main screen'));
   });
 
   it('shows the app through a transparent modal', async () => {
@@ -52,7 +52,7 @@ describe('Modal', () => {
       </View>,
     );
     await tick();
-    expect(lastFrame()?.split('\n')[0]).toMatch(/^main screen\s+overlay$/);
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toMatch(/^main screen\s+overlay$/));
   });
 
   it('limits focus to the top modal', async () => {
@@ -68,7 +68,7 @@ describe('Modal', () => {
     );
     await tick();
     await press(stdin, keys.tab, keys.enter, keys.tab, keys.enter);
-    expect(inside).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(inside).toHaveBeenCalledTimes(2));
     expect(outside).not.toHaveBeenCalled();
   });
 
@@ -89,8 +89,8 @@ describe('Modal', () => {
     }
     renderInteractive(<App />);
     await tick(80);
-    expect(onShow).toHaveBeenCalledOnce();
-    expect(onDismiss).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onShow).toHaveBeenCalledOnce());
+    await waitFor(() => expect(onDismiss).toHaveBeenCalledOnce());
   });
 });
 
@@ -104,12 +104,12 @@ describe('Alert', () => {
       { text: 'Delete', style: 'destructive', onPress: onDelete },
     ]);
     await tick(100);
-    expect(lastFrame()).toContain('Delete file?');
-    expect(lastFrame()).toContain('This cannot be undone.');
-    expect(lastFrame()).toContain('[ Cancel ]');
+    await waitFor(() => expect(lastFrame()).toContain('Delete file?'));
+    await waitFor(() => expect(lastFrame()).toContain('This cannot be undone.'));
+    await waitFor(() => expect(lastFrame()).toContain('[ Cancel ]'));
     await press(stdin, keys.enter);
     await tick();
-    expect(onDelete).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
     expect(lastFrame()).not.toContain('Delete file?');
   });
 
@@ -117,12 +117,15 @@ describe('Alert', () => {
     const onCancel = vi.fn();
     const { stdin, lastFrame } = renderInteractive(<Text>app</Text>);
     await tick();
-    Alert.alert('Quit?', undefined, [{ text: 'No', style: 'cancel', onPress: onCancel }, { text: 'Yes' }]);
+    Alert.alert('Quit?', undefined, [
+      { text: 'No', style: 'cancel', onPress: onCancel },
+      { text: 'Yes' },
+    ]);
     await tick(100);
     await press(stdin, keys.escape);
     await tick();
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(lastFrame()).toBe('app');
+    await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
+    await waitFor(() => expect(lastFrame()).toBe('app'));
   });
 
   it('prompts for text', async () => {
@@ -133,7 +136,7 @@ describe('Alert', () => {
     await tick(100);
     await press(stdin, 'Ada', keys.enter);
     await tick();
-    expect(onSubmit).toHaveBeenCalledWith('Ada');
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('Ada'));
   });
 });
 
@@ -142,12 +145,15 @@ describe('ActionSheetIOS', () => {
     const callback = vi.fn();
     const { stdin, lastFrame } = renderInteractive(<Text>app</Text>);
     await tick();
-    ActionSheetIOS.showActionSheetWithOptions({ options: ['Cancel', 'Copy', 'Delete'], cancelButtonIndex: 0 }, callback);
+    ActionSheetIOS.showActionSheetWithOptions(
+      { options: ['Cancel', 'Copy', 'Delete'], cancelButtonIndex: 0 },
+      callback,
+    );
     await tick(100);
-    expect(lastFrame()).toContain('[ Copy ]');
+    await waitFor(() => expect(lastFrame()).toContain('[ Copy ]'));
     await press(stdin, keys.tab, keys.enter);
     await tick();
-    expect(callback).toHaveBeenCalledWith(1);
+    await waitFor(() => expect(callback).toHaveBeenCalledWith(1));
   });
 });
 
@@ -159,10 +165,10 @@ describe('ToastAndroid', () => {
       await tick();
       ToastAndroid.show('Saved', ToastAndroid.SHORT);
       await tick();
-      expect(lastFrame()).toBe('app\n Saved');
+      await waitFor(() => expect(lastFrame()).toBe('app\n Saved'));
       vi.advanceTimersByTime(2100);
       await tick();
-      expect(lastFrame()).toBe('app');
+      await waitFor(() => expect(lastFrame()).toBe('app'));
     } finally {
       vi.useRealTimers();
     }
@@ -183,7 +189,7 @@ describe('BackHandler', () => {
     const { stdin } = renderInteractive(<Text>app</Text>);
     await tick();
     await press(stdin, keys.escape);
-    expect(calls).toEqual(['second', 'first']);
+    await waitFor(() => expect(calls).toEqual(['second', 'first']));
     first.remove();
     second.remove();
   });

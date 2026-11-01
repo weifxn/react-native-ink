@@ -56,7 +56,9 @@ const hex = (n: number) => n.toString(16).padStart(2, '0');
 /**
  * Resolves any React Native color value. Returns `undefined` when unset and `null` when invalid.
  */
-export function resolveColor(value: ColorValue | number | null | undefined): ResolvedColor | null | undefined {
+export function resolveColor(
+  value: ColorValue | number | null | undefined,
+): ResolvedColor | null | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }

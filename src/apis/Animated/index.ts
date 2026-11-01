@@ -32,7 +32,10 @@ import {
   type AnimatedProps as AnimatedPropsType,
   type WithAnimatedValue as WithAnimatedValueType,
 } from './createAnimatedComponent.js';
-import type { ExtrapolateType as ExtrapolateTypeT, InterpolationConfigType as InterpolationConfig } from './interpolate.js';
+import type {
+  ExtrapolateType as ExtrapolateTypeT,
+  InterpolationConfigType as InterpolationConfig,
+} from './interpolate.js';
 import {
   AnimatedColor,
   AnimatedDiffClamp,
@@ -97,8 +100,10 @@ export declare namespace Animated {
   type Value = AnimatedValue;
   type ValueXY = AnimatedValueXY;
   type Color = AnimatedColor;
-  type AnimatedInterpolation<OutputT extends number | string = number | string> = AnimatedInterpolationClass<OutputT>;
-  type Interpolation<OutputT extends number | string = number | string> = AnimatedInterpolationClass<OutputT>;
+  type AnimatedInterpolation<OutputT extends number | string = number | string> =
+    AnimatedInterpolationClass<OutputT>;
+  type Interpolation<OutputT extends number | string = number | string> =
+    AnimatedInterpolationClass<OutputT>;
   type Node = AnimatedNode;
   type CompositeAnimation = CompositeAnimationType;
   type EndResult = EndResultType;
@@ -116,7 +121,10 @@ export declare namespace Animated {
 }
 
 /** An `Animated.Value` that lives as long as the component. */
-export function useAnimatedValue(initialValue: number, config?: { useNativeDriver?: boolean }): AnimatedValue {
+export function useAnimatedValue(
+  initialValue: number,
+  config?: { useNativeDriver?: boolean },
+): AnimatedValue {
   const ref = useRef<AnimatedValue | null>(null);
   ref.current ??= new AnimatedValue(initialValue, config);
   return ref.current;

@@ -9,8 +9,18 @@ export type MeasureOnSuccessCallback = (
   pageX: number,
   pageY: number,
 ) => void;
-export type MeasureInWindowOnSuccessCallback = (x: number, y: number, width: number, height: number) => void;
-export type MeasureLayoutOnSuccessCallback = (left: number, top: number, width: number, height: number) => void;
+export type MeasureInWindowOnSuccessCallback = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) => void;
+export type MeasureLayoutOnSuccessCallback = (
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+) => void;
 
 /** React Native's host-instance methods. */
 export interface NativeMethods {
@@ -100,7 +110,10 @@ export function attachNativeMethods(
     focus: overrides.focus ?? (() => {}),
     blur: overrides.blur ?? (() => {}),
     setNativeProps() {
-      warnOnce('setNativeProps', 'setNativeProps is not supported; update props through React state instead.');
+      warnOnce(
+        'setNativeProps',
+        'setNativeProps is not supported; update props through React state instead.',
+      );
     },
   };
   return Object.assign(node, methods);

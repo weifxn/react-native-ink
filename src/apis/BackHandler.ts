@@ -15,7 +15,10 @@ export const BackHandler = {
   exitApp(): void {
     currentRoot()?.exit();
   },
-  addEventListener(_eventName: 'hardwareBackPress', handler: BackPressHandler): EmitterSubscription {
+  addEventListener(
+    _eventName: 'hardwareBackPress',
+    handler: BackPressHandler,
+  ): EmitterSubscription {
     handlers.push(handler);
     notify();
     return {

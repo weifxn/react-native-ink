@@ -56,7 +56,10 @@ export const Linking = {
   openSettings(): Promise<void> {
     return Promise.reject(new Error('Linking.openSettings is not supported in terminals.'));
   },
-  sendIntent(_action: string, _extras?: Array<{ key: string; value: string | number | boolean }>): Promise<void> {
+  sendIntent(
+    _action: string,
+    _extras?: Array<{ key: string; value: string | number | boolean }>,
+  ): Promise<void> {
     return Promise.reject(new Error('Linking.sendIntent is only available on Android.'));
   },
   addEventListener(_type: 'url', _handler: (event: { url: string }) => void): EmitterSubscription {

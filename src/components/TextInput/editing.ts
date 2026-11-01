@@ -67,7 +67,10 @@ export function deleteForward(state: EditState): EditState {
   return make(parts, state.cursor);
 }
 
-export const moveLeft = (state: EditState): EditState => ({ ...state, cursor: Math.max(0, state.cursor - 1) });
+export const moveLeft = (state: EditState): EditState => ({
+  ...state,
+  cursor: Math.max(0, state.cursor - 1),
+});
 
 export const moveRight = (state: EditState): EditState => ({
   ...state,

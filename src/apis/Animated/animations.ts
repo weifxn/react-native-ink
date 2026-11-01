@@ -1,6 +1,12 @@
 import { warnOnce } from '../../internal/warn.js';
 import { Easing, type EasingFunction } from '../Easing.js';
-import { AnimatedColor, AnimatedNode, AnimatedValue, AnimatedValueXY, parseColor } from './nodes.js';
+import {
+  AnimatedColor,
+  AnimatedNode,
+  AnimatedValue,
+  AnimatedValueXY,
+  parseColor,
+} from './nodes.js';
 
 export type EndResult = { finished: boolean; value?: number };
 export type EndCallback = (result: EndResult) => void;
@@ -92,7 +98,12 @@ class TimingAnimation extends Animation {
   #easing: EasingFunction;
   #delay: number;
 
-  constructor(config: { toValue: number; duration?: number; easing?: EasingFunction; delay?: number }) {
+  constructor(config: {
+    toValue: number;
+    duration?: number;
+    easing?: EasingFunction;
+    delay?: number;
+  }) {
     super();
     this.#toValue = config.toValue;
     this.#duration = config.duration ?? 500;
@@ -149,12 +160,19 @@ function fromBouncinessAndSpeed(bounciness: number, speed: number) {
   const b3Friction2 = (x: number) => 0.000044 * x ** 3 - 0.006 * x ** 2 + 0.36 * x + 2;
   const b3Friction3 = (x: number) => 0.00000045 * x ** 3 - 0.000332 * x ** 2 + 0.1078 * x + 5.84;
   const b3NoBounce = (tension: number) =>
-    tension <= 18 ? b3Friction1(tension) : tension <= 44 ? b3Friction2(tension) : b3Friction3(tension);
+    tension <= 18
+      ? b3Friction1(tension)
+      : tension <= 44
+        ? b3Friction2(tension)
+        : b3Friction3(tension);
   const b = project(normalize(bounciness / 1.7, 0, 20), 0, 0.8);
   const s = normalize(speed / 1.7, 0, 20);
   const bouncyTension = project(s, 0.5, 200);
   const bouncyFriction = quadraticOut(b, b3NoBounce(bouncyTension), 0.01);
-  return { stiffness: stiffnessFromOrigami(bouncyTension), damping: dampingFromOrigami(bouncyFriction) };
+  return {
+    stiffness: stiffnessFromOrigami(bouncyTension),
+    damping: dampingFromOrigami(bouncyFriction),
+  };
 }
 
 class SpringAnimation extends Animation {
@@ -168,7 +186,12 @@ class SpringAnimation extends Animation {
   #restSpeed: number;
   #delay: number;
 
-  constructor(config: Omit<SpringAnimationConfig, 'toValue' | 'velocity'> & { toValue: number; velocity?: number }) {
+  constructor(
+    config: Omit<SpringAnimationConfig, 'toValue' | 'velocity'> & {
+      toValue: number;
+      velocity?: number;
+    },
+  ) {
     super();
     this.#toValue = config.toValue;
     this.#velocity = config.velocity ?? 0;
@@ -177,7 +200,11 @@ class SpringAnimation extends Animation {
     this.#restSpeed = config.restSpeedThreshold ?? 0.001;
     this.#delay = config.delay ?? 0;
     this.#mass = config.mass ?? 1;
-    if (config.stiffness !== undefined || config.damping !== undefined || config.mass !== undefined) {
+    if (
+      config.stiffness !== undefined ||
+      config.damping !== undefined ||
+      config.mass !== undefined
+    ) {
       this.#stiffness = config.stiffness ?? 100;
       this.#damping = config.damping ?? 10;
     } else if (config.bounciness !== undefined || config.speed !== undefined) {
@@ -210,10 +237,18 @@ class SpringAnimation extends Animation {
           const envelope = Math.exp(-zeta * omega0 * t);
           position =
             this.#toValue -
-            envelope * (((v0 + zeta * omega0 * x0) / omega1) * Math.sin(omega1 * t) + x0 * Math.cos(omega1 * t));
+            envelope *
+              (((v0 + zeta * omega0 * x0) / omega1) * Math.sin(omega1 * t) +
+                x0 * Math.cos(omega1 * t));
           velocity =
-            zeta * omega0 * envelope * ((Math.sin(omega1 * t) * (v0 + zeta * omega0 * x0)) / omega1 + x0 * Math.cos(omega1 * t)) -
-            envelope * (Math.cos(omega1 * t) * (v0 + zeta * omega0 * x0) - omega1 * x0 * Math.sin(omega1 * t));
+            zeta *
+              omega0 *
+              envelope *
+              ((Math.sin(omega1 * t) * (v0 + zeta * omega0 * x0)) / omega1 +
+                x0 * Math.cos(omega1 * t)) -
+            envelope *
+              (Math.cos(omega1 * t) * (v0 + zeta * omega0 * x0) -
+                omega1 * x0 * Math.sin(omega1 * t));
         } else {
           const envelope = Math.exp(-omega0 * t);
           position = this.#toValue - envelope * (x0 + (v0 + omega0 * x0) * t);
@@ -224,7 +259,8 @@ class SpringAnimation extends Animation {
           k !== 0 &&
           (fromValue < this.#toValue ? position > this.#toValue : position < this.#toValue);
         const resting =
-          Math.abs(velocity) <= this.#restSpeed && (k === 0 || Math.abs(this.#toValue - position) <= this.#restDisplacement);
+          Math.abs(velocity) <= this.#restSpeed &&
+          (k === 0 || Math.abs(this.#toValue - position) <= this.#restDisplacement);
         if (overshooting || resting) {
           onUpdate(this.#toValue);
           this.finish(true);
@@ -265,7 +301,8 @@ class DecayAnimation extends Animation {
       const step = (now: number) => {
         const value =
           fromValue +
-          (this.#velocity / (1 - this.#deceleration)) * (1 - Math.exp(-(1 - this.#deceleration) * (now - startTime)));
+          (this.#velocity / (1 - this.#deceleration)) *
+            (1 - Math.exp(-(1 - this.#deceleration) * (now - startTime)));
         onUpdate(value);
         if (Math.abs(last - value) < 0.1) {
           this.finish(true);
@@ -292,7 +329,10 @@ type AnimatableValue = AnimatedValue | AnimatedValueXY | AnimatedColor;
 const toNumber = (value: unknown): number => {
   if (typeof value === 'number') return value;
   if (value instanceof AnimatedNode) {
-    warnOnce('Animated.toValue:node', 'Animating toward another Animated value uses its value at start time.');
+    warnOnce(
+      'Animated.toValue:node',
+      'Animating toward another Animated value uses its value at start time.',
+    );
     return Number(value.__getValue());
   }
   return Number(value);
@@ -326,7 +366,10 @@ function forEachChannel(
 ): CompositeAnimation {
   if (value instanceof AnimatedValueXY) {
     const target = toValue as { x: unknown; y: unknown };
-    return parallel([make(value.x, toNumber(target.x), 'x'), make(value.y, toNumber(target.y), 'y')], { stopTogether: false });
+    return parallel(
+      [make(value.x, toNumber(target.x), 'x'), make(value.y, toNumber(target.y), 'y')],
+      { stopTogether: false },
+    );
   }
   const color = parseColor(toValue as string);
   return parallel(
@@ -342,9 +385,15 @@ function forEachChannel(
 
 export function timing(value: AnimatableValue, config: TimingAnimationConfig): CompositeAnimation {
   if (value instanceof AnimatedValueXY || value instanceof AnimatedColor) {
-    return forEachChannel(value, config.toValue, (channel, target) => timing(channel, { ...config, toValue: target }));
+    return forEachChannel(value, config.toValue, (channel, target) =>
+      timing(channel, { ...config, toValue: target }),
+    );
   }
-  return single(value, () => new TimingAnimation({ ...config, toValue: toNumber(config.toValue) }), config.iterations ?? 1);
+  return single(
+    value,
+    () => new TimingAnimation({ ...config, toValue: toNumber(config.toValue) }),
+    config.iterations ?? 1,
+  );
 }
 
 export function spring(value: AnimatableValue, config: SpringAnimationConfig): CompositeAnimation {
@@ -354,7 +403,10 @@ export function spring(value: AnimatableValue, config: SpringAnimationConfig): C
       spring(channel, {
         ...config,
         toValue: target,
-        velocity: typeof velocity === 'object' ? (velocity as Record<string, number>)[key] ?? 0 : velocity,
+        velocity:
+          typeof velocity === 'object'
+            ? ((velocity as Record<string, number>)[key] ?? 0)
+            : velocity,
       }),
     );
   }
@@ -384,7 +436,10 @@ export function decay(value: AnimatableValue, config: DecayAnimationConfig): Com
     warnOnce('Animated.decay:color', 'Animated.decay is not supported for Animated.Color.');
     return parallel([]);
   }
-  return single(value, () => new DecayAnimation({ ...config, velocity: config.velocity as number }));
+  return single(
+    value,
+    () => new DecayAnimation({ ...config, velocity: config.velocity as number }),
+  );
 }
 
 /** Runs animations one after another; stops if one is interrupted. */
@@ -422,7 +477,10 @@ export function sequence(animations: CompositeAnimation[]): CompositeAnimation {
 }
 
 /** Runs animations at the same time. With `stopTogether` (default), stopping one stops all. */
-export function parallel(animations: CompositeAnimation[], config?: { stopTogether?: boolean }): CompositeAnimation {
+export function parallel(
+  animations: CompositeAnimation[],
+  config?: { stopTogether?: boolean },
+): CompositeAnimation {
   let doneCount = 0;
   const hasEnded: boolean[] = [];
   const stopTogether = config?.stopTogether !== false;
@@ -465,7 +523,12 @@ export function parallel(animations: CompositeAnimation[], config?: { stopTogeth
 
 /** Waits `time` milliseconds. */
 export function delay(time: number): CompositeAnimation {
-  return timing(new AnimatedValue(0), { toValue: 0, delay: time, duration: 0, useNativeDriver: false });
+  return timing(new AnimatedValue(0), {
+    toValue: 0,
+    delay: time,
+    duration: 0,
+    useNativeDriver: false,
+  });
 }
 
 /** Starts animations in parallel, each `time` ms after the previous one. */
@@ -476,7 +539,10 @@ export function stagger(time: number, animations: CompositeAnimation[]): Composi
 /** Repeats an animation (`iterations: -1` loops forever). */
 export function loop(
   animation: CompositeAnimation,
-  { iterations = -1, resetBeforeIteration = true }: { iterations?: number; resetBeforeIteration?: boolean } = {},
+  {
+    iterations = -1,
+    resetBeforeIteration = true,
+  }: { iterations?: number; resetBeforeIteration?: boolean } = {},
 ): CompositeAnimation {
   let isFinished = false;
   let iterationsSoFar = 0;
@@ -523,14 +589,20 @@ function applyMapping(mapping: unknown, value: unknown) {
     }
   } else if (mapping && typeof mapping === 'object' && value && typeof value === 'object') {
     for (const key of Object.keys(mapping)) {
-      applyMapping((mapping as Record<string, unknown>)[key], (value as Record<string, unknown>)[key]);
+      applyMapping(
+        (mapping as Record<string, unknown>)[key],
+        (value as Record<string, unknown>)[key],
+      );
     }
   }
 }
 type XY = { x: number; y: number };
 
 /** Maps event fields onto animated values, e.g. `onScroll={Animated.event([{nativeEvent: {contentOffset: {y}}}])}`. */
-export function event<T = any>(argMapping: ReadonlyArray<Mapping | null>, config?: EventConfig<T>): (...args: any[]) => void {
+export function event<T = any>(
+  argMapping: ReadonlyArray<Mapping | null>,
+  config?: EventConfig<T>,
+): (...args: any[]) => void {
   return (...args: any[]) => {
     argMapping.forEach((mapping, index) => applyMapping(mapping, args[index]));
     config?.listener?.(args[0] as T);
@@ -550,6 +622,10 @@ export function forkEvent(
 
 export function unforkEvent(_event: unknown, _listener: unknown): void {}
 
-export function attachNativeEvent(_viewRef: unknown, _eventName: string, _argMapping: unknown[]): { detach(): void } {
+export function attachNativeEvent(
+  _viewRef: unknown,
+  _eventName: string,
+  _argMapping: unknown[],
+): { detach(): void } {
   return { detach() {} };
 }

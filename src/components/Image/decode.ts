@@ -25,14 +25,17 @@ export interface ImageURISource {
 /** React Native image sources; `require()`d asset numbers are not supported in Node. */
 export type ImageSourcePropType = ImageURISource | ImageURISource[] | number | string;
 
-const isPng = (bytes: Uint8Array) => bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+const isPng = (bytes: Uint8Array) =>
+  bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
 const isJpeg = (bytes: Uint8Array) => bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 
 async function importOptional<T>(name: string): Promise<T> {
   try {
     return (await import(name)) as T;
   } catch {
-    throw new Error(`Install the optional "${name}" package to display this image (npm install ${name}).`);
+    throw new Error(
+      `Install the optional "${name}" package to display this image (npm install ${name}).`,
+    );
   }
 }
 

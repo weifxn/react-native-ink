@@ -10,7 +10,11 @@ import {
 import { Box, Text as InkText, Transform, useInput, type DOMElement } from 'ink';
 import { resolveAccessibility, type AccessibilityProps } from '../../internal/accessibility.js';
 import { TextAncestorContext, TextInheritanceContext } from '../../internal/contexts.js';
-import { createPressEvent, type GestureResponderEvent, type LayoutChangeEvent } from '../../internal/events.js';
+import {
+  createPressEvent,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+} from '../../internal/events.js';
 import { useFocusable } from '../../internal/focus.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
@@ -86,7 +90,10 @@ const ELLIPSIS_WRAP: Record<string, TextWrap> = {
   tail: 'truncate-end',
 };
 
-const transformChildren = (children: ReactNode, transform: TextTransform | undefined): ReactNode => {
+const transformChildren = (
+  children: ReactNode,
+  transform: TextTransform | undefined,
+): ReactNode => {
   if (!transform || transform === 'none') return children;
   return Children.map(children, (child) =>
     typeof child === 'string' || typeof child === 'number'
@@ -98,12 +105,21 @@ const transformChildren = (children: ReactNode, transform: TextTransform | undef
 const numericSide = (value: unknown) => (typeof value === 'number' ? value : 0);
 
 function TextImpl(props: TextImplProps) {
-  const { style, children, numberOfLines, ellipsizeMode = 'tail', onLayout, ref, focusInverse } = props;
+  const {
+    style,
+    children,
+    numberOfLines,
+    ellipsizeMode = 'tail',
+    onLayout,
+    ref,
+    focusInverse,
+  } = props;
   const inherited = useContext(TextInheritanceContext);
   const boxRef = useRef<DOMElement>(null);
   useImperativeHandle(
     ref,
-    () => (boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance)),
+    () =>
+      boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance),
     [],
   );
 
@@ -116,15 +132,29 @@ function TextImpl(props: TextImplProps) {
   const inverse = Boolean(focusInverse) || (!nested && inherited.inverse);
 
   const inheritance = useMemo(
-    () => ({ inText: true, transform, dim: inherited.dim || dim, hidden: inherited.hidden || hidden, inverse }),
+    () => ({
+      inText: true,
+      transform,
+      dim: inherited.dim || dim,
+      hidden: inherited.hidden || hidden,
+      inverse,
+    }),
     [transform, inherited.dim, inherited.hidden, dim, hidden, inverse],
   );
 
-  const lines = numberOfLines !== undefined && numberOfLines > 0 ? Math.floor(numberOfLines) : undefined;
+  const lines =
+    numberOfLines !== undefined && numberOfLines > 0 ? Math.floor(numberOfLines) : undefined;
   const clip = lines !== undefined && ellipsizeMode === 'clip';
   const wrap: TextWrap =
-    lines === 1 && !clip ? (ELLIPSIS_WRAP[ellipsizeMode] ?? 'truncate-end') : clip ? 'hard' : 'wrap';
-  const align = !nested && (resolved.align === 'center' || resolved.align === 'right') ? resolved.align : undefined;
+    lines === 1 && !clip
+      ? (ELLIPSIS_WRAP[ellipsizeMode] ?? 'truncate-end')
+      : clip
+        ? 'hard'
+        : 'wrap';
+  const align =
+    !nested && (resolved.align === 'center' || resolved.align === 'right')
+      ? resolved.align
+      : undefined;
 
   const needsBox =
     !nested &&
@@ -177,7 +207,8 @@ function TextImpl(props: TextImplProps) {
     { component: 'Text', defaults: TEXT_BOX_DEFAULTS },
   );
   const box = { ...view.box };
-  if (resolved.backgroundColor !== undefined && !hidden) box.backgroundColor = resolved.backgroundColor;
+  if (resolved.backgroundColor !== undefined && !hidden)
+    box.backgroundColor = resolved.backgroundColor;
   if (lines !== undefined && (lines > 1 || clip)) {
     box.maxHeight =
       lines +

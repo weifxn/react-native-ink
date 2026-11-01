@@ -52,7 +52,8 @@ StatusBar.setNetworkActivityIndicatorVisible = (_visible: boolean): void => {};
 StatusBar.setTranslucent = (_translucent: boolean): void => {};
 StatusBar.pushStackEntry = (props: StatusBarProps): StatusBarProps => props;
 StatusBar.popStackEntry = (_entry: StatusBarProps): void => {};
-StatusBar.replaceStackEntry = (_entry: StatusBarProps, props: StatusBarProps): StatusBarProps => props;
+StatusBar.replaceStackEntry = (_entry: StatusBarProps, props: StatusBarProps): StatusBarProps =>
+  props;
 
 export interface RefreshControlProps extends ViewProps {
   /** While true, a ScrollView/FlatList shows a spinner above its content. */
@@ -74,7 +75,11 @@ export function RefreshControl(_props: RefreshControlProps): null {
 }
 
 /** iOS keyboard accessory views have no terminal equivalent. */
-export function InputAccessoryView(_props: { children?: ReactNode; nativeID?: string; style?: StyleProp<ViewStyle> }) {
+export function InputAccessoryView(_props: {
+  children?: ReactNode;
+  nativeID?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
   return null;
 }
 
@@ -93,13 +98,24 @@ export interface DrawerLayoutAndroidProps extends ViewProps {
 }
 
 /** Renders the main content only; the swipe-out drawer has no terminal equivalent. */
-export function DrawerLayoutAndroid({ renderNavigationView: _renderNavigationView, ...props }: DrawerLayoutAndroidProps) {
-  warnOnce('DrawerLayoutAndroid', 'DrawerLayoutAndroid renders only its main content in terminals.');
+export function DrawerLayoutAndroid({
+  renderNavigationView: _renderNavigationView,
+  ...props
+}: DrawerLayoutAndroidProps) {
+  warnOnce(
+    'DrawerLayoutAndroid',
+    'DrawerLayoutAndroid renders only its main content in terminals.',
+  );
   return <View {...props} />;
 }
 
 /** Renders its children unchanged. */
-export function experimental_LayoutConformance({ children }: { children?: ReactNode; mode?: string }) {
+export function experimental_LayoutConformance({
+  children,
+}: {
+  children?: ReactNode;
+  mode?: string;
+}) {
   return <>{children}</>;
 }
 
@@ -126,7 +142,9 @@ function unsupportedComponent(name: string) {
 
 export const unstable_VirtualArray = unsupportedComponent('unstable_VirtualArray');
 export const unstable_VirtualColumn = unsupportedComponent('unstable_VirtualColumn');
-export const unstable_VirtualColumnGenerator = unsupportedComponent('unstable_VirtualColumnGenerator');
+export const unstable_VirtualColumnGenerator = unsupportedComponent(
+  'unstable_VirtualColumnGenerator',
+);
 export const unstable_VirtualRow = unsupportedComponent('unstable_VirtualRow');
 export function unstable_createVirtualCollectionView(..._args: unknown[]) {
   return unsupportedComponent('VirtualCollectionView');

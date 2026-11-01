@@ -48,7 +48,8 @@ export function ActivityIndicator({
 }
 
 export interface ProgressBarAndroidProps extends ViewProps {
-  styleAttr?: 'Horizontal' | 'Normal' | 'Small' | 'Large' | 'Inverse' | 'SmallInverse' | 'LargeInverse';
+  styleAttr?:
+    'Horizontal' | 'Normal' | 'Small' | 'Large' | 'Inverse' | 'SmallInverse' | 'LargeInverse';
   indeterminate?: boolean;
   progress?: number;
   animating?: boolean;
@@ -75,7 +76,11 @@ export function ProgressBarAndroid({
     const filled = Math.round(Math.min(1, Math.max(0, progress)) * width);
     const [full, empty] = isUnicodeSupported() ? ['█', '░'] : ['#', '-'];
     return (
-      <View accessibilityRole="progressbar" {...viewProps} style={[{ flexDirection: 'row' }, style]}>
+      <View
+        accessibilityRole="progressbar"
+        {...viewProps}
+        style={[{ flexDirection: 'row' }, style]}
+      >
         <Text style={{ color }}>
           {full.repeat(filled)}
           {empty.repeat(width - filled)}

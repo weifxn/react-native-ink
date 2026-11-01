@@ -31,7 +31,11 @@ describe('flattenStyle', () => {
 
   it('merges nested arrays left to right, skipping falsy entries', () => {
     expect(
-      flattenStyle<ViewStyle>([{ width: 1, height: 2 }, false, [null, { width: 3 }, [{ margin: 4 }]]]),
+      flattenStyle<ViewStyle>([
+        { width: 1, height: 2 },
+        false,
+        [null, { width: 3 }, [{ margin: 4 }]],
+      ]),
     ).toEqual({ width: 3, height: 2, margin: 4 });
   });
 
@@ -68,12 +72,18 @@ describe('resolveColor', () => {
   });
 
   it('resolves PlatformColor to terminal palette names', () => {
-    expect(resolveColor(createPlatformColor(['redBright']))).toEqual({ color: 'redBright', alpha: 1 });
+    expect(resolveColor(createPlatformColor(['redBright']))).toEqual({
+      color: 'redBright',
+      alpha: 1,
+    });
     expect(resolveColor(createPlatformColor(['ansi256(208)']))).toEqual({
       color: 'ansi256(208)',
       alpha: 1,
     });
-    expect(resolveColor(createPlatformColor(['systemBlue', 'blue']))).toEqual({ color: 'blue', alpha: 1 });
+    expect(resolveColor(createPlatformColor(['systemBlue', 'blue']))).toEqual({
+      color: 'blue',
+      alpha: 1,
+    });
     expect(resolveColor(createPlatformColor(['systemBlue']))).toBeNull();
   });
 });
@@ -103,14 +113,22 @@ describe('resolveViewStyle', () => {
     [{ flex: 2 }, { flexGrow: 2, flexShrink: 0, flexBasis: 0 }],
     [{ flex: 0 }, { flexGrow: 0, flexShrink: 0 }],
     [{ flex: -1 }, { flexGrow: 0, flexShrink: 1 }],
-    [{ flex: 1, flexShrink: 1 }, { flexGrow: 1, flexShrink: 1, flexBasis: 0 }],
-    [{ flex: 1, flexBasis: 5 }, { flexGrow: 1, flexShrink: 0, flexBasis: 5 }],
+    [
+      { flex: 1, flexShrink: 1 },
+      { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
+    ],
+    [
+      { flex: 1, flexBasis: 5 },
+      { flexGrow: 1, flexShrink: 0, flexBasis: 5 },
+    ],
   ] as Array<[ViewStyle, Record<string, unknown>]>)('expands flex %j', (style, expected) => {
     expect(view(style).box).toMatchObject(expected);
   });
 
   it('resolves margins with React Native precedence', () => {
-    expect(view({ margin: 1, marginHorizontal: 2, marginLeft: 3, marginStart: 4 }).box).toMatchObject({
+    expect(
+      view({ margin: 1, marginHorizontal: 2, marginLeft: 3, marginStart: 4 }).box,
+    ).toMatchObject({
       marginTop: 1,
       marginBottom: 1,
       marginLeft: 4,
@@ -237,8 +255,10 @@ describe('resolveViewStyle', () => {
 });
 
 describe('resolveBorders', () => {
-  const borders = (style: ViewStyle, options: { unicode?: boolean; dim?: boolean; hidden?: boolean } = {}) =>
-    resolveBorders(style, { component: 'View', unicode: true, ...options });
+  const borders = (
+    style: ViewStyle,
+    options: { unicode?: boolean; dim?: boolean; hidden?: boolean } = {},
+  ) => resolveBorders(style, { component: 'View', unicode: true, ...options });
 
   it('draws nothing without a width', () => {
     expect(borders({ borderColor: 'red', borderStyle: 'dashed' })).toEqual({});
@@ -254,11 +274,15 @@ describe('resolveBorders', () => {
       left: '┆',
       topLeft: '┌',
     });
-    expect(borders({ borderWidth: 1, borderStyle: 'dotted', borderRadius: 2 }).borderStyle).toMatchObject({
+    expect(
+      borders({ borderWidth: 1, borderStyle: 'dotted', borderRadius: 2 }).borderStyle,
+    ).toMatchObject({
       top: '┈',
       topLeft: '╭',
     });
-    expect(borders({ borderWidth: 1, borderStyle: 'double' }, { unicode: false }).borderStyle).toBe('classic');
+    expect(borders({ borderWidth: 1, borderStyle: 'double' }, { unicode: false }).borderStyle).toBe(
+      'classic',
+    );
   });
 
   it('draws only the sides with a width', () => {
@@ -272,7 +296,14 @@ describe('resolveBorders', () => {
   });
 
   it('resolves per-side colors with precedence', () => {
-    expect(borders({ borderWidth: 1, borderColor: 'red', borderTopColor: 'blue', borderStartColor: '#fff' })).toMatchObject({
+    expect(
+      borders({
+        borderWidth: 1,
+        borderColor: 'red',
+        borderTopColor: 'blue',
+        borderStartColor: '#fff',
+      }),
+    ).toMatchObject({
       borderTopColor: 'blue',
       borderRightColor: 'red',
       borderBottomColor: 'red',
@@ -281,7 +312,11 @@ describe('resolveBorders', () => {
   });
 
   it('draws transparent sides with spaces', () => {
-    const style = borders({ borderWidth: 1, borderColor: 'red', borderTopColor: 'transparent' }).borderStyle;
+    const style = borders({
+      borderWidth: 1,
+      borderColor: 'red',
+      borderTopColor: 'transparent',
+    }).borderStyle;
     expect(style).toEqual({
       ...NAMED_BOX_STYLES.single,
       top: ' ',
@@ -292,7 +327,10 @@ describe('resolveBorders', () => {
 
   it('dims or hides borders for opacity', () => {
     expect(borders({ borderWidth: 1 }, { dim: true }).borderDimColor).toBe(true);
-    expect(borders({ borderWidth: 1 }, { hidden: true }).borderStyle).toMatchObject({ top: ' ', topLeft: ' ' });
+    expect(borders({ borderWidth: 1 }, { hidden: true }).borderStyle).toMatchObject({
+      top: ' ',
+      topLeft: ' ',
+    });
   });
 });
 
@@ -328,7 +366,10 @@ describe('resolveTextStyle', () => {
   });
 
   it('handles translucency and opacity', () => {
-    expect(resolveTextStyle({ color: 'rgba(255,255,255,0.4)' })).toMatchObject({ dim: true, hidden: false });
+    expect(resolveTextStyle({ color: 'rgba(255,255,255,0.4)' })).toMatchObject({
+      dim: true,
+      hidden: false,
+    });
     expect(resolveTextStyle({ color: 'transparent' })).toMatchObject({ hidden: true });
     expect(resolveTextStyle({ opacity: 0.5 })).toMatchObject({ dim: true });
     expect(resolveTextStyle({ opacity: 0 })).toMatchObject({ hidden: true });

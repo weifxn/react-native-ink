@@ -70,14 +70,24 @@ function mergeRefs<T>(...refs: Array<Ref<T> | undefined>) {
 
 /** The basic layout container: an Ink `<Box>` with React Native's style semantics. */
 export function View(props: ViewProps & Partial<ViewInternalProps>) {
-  const { style, children, onLayout, ref, boxRef: externalBoxRef, overrideBox, inverseText, dimText } = props;
+  const {
+    style,
+    children,
+    onLayout,
+    ref,
+    boxRef: externalBoxRef,
+    overrideBox,
+    inverseText,
+    dimText,
+  } = props;
   const component = props.component ?? 'View';
   const inherited = useContext(TextInheritanceContext);
   const boxRef = useRef<DOMElement>(null);
 
   useImperativeHandle(
     ref,
-    () => (boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance)),
+    () =>
+      boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance),
     [],
   );
 
@@ -99,7 +109,8 @@ export function View(props: ViewProps & Partial<ViewInternalProps>) {
   }
 
   const box = { ...resolved.box, ...resolveAccessibility(props), ...overrideBox };
-  const needsContext = dim !== inherited.dim || hidden !== inherited.hidden || inverse !== inherited.inverse;
+  const needsContext =
+    dim !== inherited.dim || hidden !== inherited.hidden || inverse !== inherited.inverse;
   const content = (
     <Box ref={mergeRefs(boxRef, externalBoxRef)} {...box}>
       {children}

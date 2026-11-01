@@ -65,7 +65,12 @@ function sample(bitmap: Bitmap, x0: number, y0: number, x1: number, y1: number):
  * Renders a bitmap into `columns` × `rows` terminal cells using half blocks: each cell shows two
  * vertical pixels (`▀` with foreground = top pixel, background = bottom pixel).
  */
-export function rasterize(bitmap: Bitmap, columns: number, rows: number, mode: ResizeMode = 'cover'): string[] {
+export function rasterize(
+  bitmap: Bitmap,
+  columns: number,
+  rows: number,
+  mode: ResizeMode = 'cover',
+): string[] {
   const width = Math.max(1, Math.round(columns));
   const height = Math.max(1, Math.round(rows)) * 2;
   const map = mapping(bitmap, width, height, mode);

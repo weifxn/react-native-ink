@@ -20,7 +20,9 @@ export type AnimatedProps<Props> = {
   [K in keyof Props]: K extends 'ref' | 'children' ? Props[K] : WithAnimatedValue<Props[K]>;
 };
 
-export type AnimatedComponent<Props> = ((props: AnimatedProps<Props>) => ReactElement) & { displayName?: string };
+export type AnimatedComponent<Props> = ((props: AnimatedProps<Props>) => ReactElement) & {
+  displayName?: string;
+};
 
 const DEEP = 8;
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -53,7 +55,9 @@ const depthFor = (key: string) => (key === 'style' || key.endsWith('Style') ? DE
  * Makes a component accept animated values in its props and `style`; it re-renders whenever
  * one of those values changes.
  */
-export function createAnimatedComponent<Props extends object>(Component: ComponentType<Props>): AnimatedComponent<Props> {
+export function createAnimatedComponent<Props extends object>(
+  Component: ComponentType<Props>,
+): AnimatedComponent<Props> {
   function Animated(props: AnimatedProps<Props>) {
     const [, rerender] = useReducer((count: number) => count + 1, 0);
     const roots = new Set<AnimatedValue>();

@@ -58,7 +58,8 @@ export function Modal(props: ModalProps) {
         id,
         transparent,
         content: children,
-        onRequestClose: () => latest.current.onRequestClose?.(createSyntheticEvent('requestClose', {})),
+        onRequestClose: () =>
+          latest.current.onRequestClose?.(createSyntheticEvent('requestClose', {})),
       });
     } else {
       host.remove(id);

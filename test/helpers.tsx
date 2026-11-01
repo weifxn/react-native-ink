@@ -27,7 +27,21 @@ export function renderInteractive(element: ReactElement) {
   return inkTestRender(<AppRoot>{element}</AppRoot>);
 }
 
-export const tick = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+export const tick = (ms = 60) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Retries an assertion until it passes (or `timeout` ms elapse), for checks that follow input. */
+export async function waitFor(assertion: () => void, { timeout = 2000, interval = 20 } = {}) {
+  const start = Date.now();
+  for (;;) {
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      if (Date.now() - start > timeout) throw error;
+      await tick(interval);
+    }
+  }
+}
 
 /** Terminal input sequences. */
 export const keys = {
@@ -57,11 +71,9 @@ export const keys = {
 export async function press(stdin: { write(data: string): void }, ...sequence: string[]) {
   for (const data of sequence) {
     stdin.write(data);
-    await tick(data === keys.escape ? 120 : 25);
+    await tick(data === keys.escape ? 150 : 50);
   }
 }
-
-
 
 /** Minimal TTY-like output stream for running real Ink instances in tests. */
 export class FakeStdout extends EventEmitter {

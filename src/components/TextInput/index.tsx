@@ -1,5 +1,21 @@
-import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
-import { Box, Text as InkText, useBoxMetrics, useInput, usePaste, type DOMElement, type Key } from 'ink';
+import {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
+import {
+  Box,
+  Text as InkText,
+  useBoxMetrics,
+  useInput,
+  usePaste,
+  type DOMElement,
+  type Key,
+} from 'ink';
 import stringWidth from 'string-width';
 import { resolveAccessibility } from '../../internal/accessibility.js';
 import { createSyntheticEvent, type NativeSyntheticEvent } from '../../internal/events.js';
@@ -34,7 +50,11 @@ import {
   type EditState,
 } from './editing.js';
 
-export type TextInputChangeEvent = NativeSyntheticEvent<{ text: string; eventCount: number; target: number }>;
+export type TextInputChangeEvent = NativeSyntheticEvent<{
+  text: string;
+  eventCount: number;
+  target: number;
+}>;
 export type TextInputFocusEvent = NativeSyntheticEvent<{ text: string; target: number }>;
 export type TextInputSubmitEditingEvent = NativeSyntheticEvent<{ text: string; target: number }>;
 export type TextInputEndEditingEvent = NativeSyntheticEvent<{ text: string; target: number }>;
@@ -200,7 +220,11 @@ export function TextInput(props: TextInputProps) {
       valueRef.current = next.value;
       if (controlledValue === undefined) setInternalValue(next.value);
       onChange?.(
-        createSyntheticEvent('change', { text: next.value, eventCount: ++eventCount, target: 0 }, instanceRef.current),
+        createSyntheticEvent(
+          'change',
+          { text: next.value, eventCount: ++eventCount, target: 0 },
+          instanceRef.current,
+        ),
       );
       onChangeText?.(next.value);
     }
@@ -209,7 +233,11 @@ export function TextInput(props: TextInputProps) {
       setCursorState(next.cursor);
       const offset = cursorToOffset(next.value, next.cursor);
       onSelectionChange?.(
-        createSyntheticEvent('selectionChange', { selection: { start: offset, end: offset }, target: 0 }, instanceRef.current),
+        createSyntheticEvent(
+          'selectionChange',
+          { selection: { start: offset, end: offset }, target: 0 },
+          instanceRef.current,
+        ),
       );
     }
   };
@@ -258,7 +286,8 @@ export function TextInput(props: TextInputProps) {
   const typed = (text: string) => {
     let clean = sanitize(text, multiline);
     if (autoCapitalize === 'characters') clean = clean.toUpperCase();
-    if (clean) commit(insert({ value: valueRef.current, cursor: cursorRef.current }, clean, maxLength));
+    if (clean)
+      commit(insert({ value: valueRef.current, cursor: cursorRef.current }, clean, maxLength));
   };
 
   const active = focusable.receivesInput && canEdit;
@@ -277,10 +306,13 @@ export function TextInput(props: TextInputProps) {
         if (behavior === 'blurAndSubmit') focusable.blur();
         return;
       }
-      if (key.backspace) return commit(key.meta || key.ctrl ? deleteWordBackward(state) : backspace(state));
+      if (key.backspace)
+        return commit(key.meta || key.ctrl ? deleteWordBackward(state) : backspace(state));
       if (key.delete) return commit(deleteForward(state));
-      if (key.leftArrow) return commit(key.ctrl || key.meta ? moveWordLeft(state) : moveLeft(state));
-      if (key.rightArrow) return commit(key.ctrl || key.meta ? moveWordRight(state) : moveRight(state));
+      if (key.leftArrow)
+        return commit(key.ctrl || key.meta ? moveWordLeft(state) : moveLeft(state));
+      if (key.rightArrow)
+        return commit(key.ctrl || key.meta ? moveWordRight(state) : moveRight(state));
       if (key.upArrow) return multiline ? commit(moveUp(state)) : undefined;
       if (key.downArrow) return multiline ? commit(moveDown(state)) : undefined;
       if (key.home || (key.ctrl && input === 'a')) return commit(moveHome(state));
@@ -295,32 +327,28 @@ export function TextInput(props: TextInputProps) {
   );
   usePaste(typed, { isActive: active });
 
-  useImperativeHandle(
-    ref,
-    () => {
-      const node = boxRef.current;
-      if (!node) return null as unknown as TextInputInstance;
-      const instance = Object.assign(
-        attachNativeMethods(node, {
-          focus: () => focusableRef.current.focus(),
-          blur: () => focusableRef.current.blur(),
-        }),
-        {
-          clear: () => commitRef.current({ value: '', cursor: 0 }),
-          isFocused: () => focusableRef.current.isFocused,
-          setSelection: (start: number, end: number) => {
-            const next = offsetToCursor(valueRef.current, end ?? start);
-            cursorRef.current = next;
-            setCursorState(next);
-          },
-          getNativeRef: () => instanceRef.current,
+  useImperativeHandle(ref, () => {
+    const node = boxRef.current;
+    if (!node) return null as unknown as TextInputInstance;
+    const instance = Object.assign(
+      attachNativeMethods(node, {
+        focus: () => focusableRef.current.focus(),
+        blur: () => focusableRef.current.blur(),
+      }),
+      {
+        clear: () => commitRef.current({ value: '', cursor: 0 }),
+        isFocused: () => focusableRef.current.isFocused,
+        setSelection: (start: number, end: number) => {
+          const next = offsetToCursor(valueRef.current, end ?? start);
+          cursorRef.current = next;
+          setCursorState(next);
         },
-      ) as TextInputInstance;
-      instanceRef.current = instance;
-      return instance;
-    },
-    [],
-  );
+        getNativeRef: () => instanceRef.current,
+      },
+    ) as TextInputInstance;
+    instanceRef.current = instance;
+    return instance;
+  }, []);
 
   // Styles: text props go to the text, layout props to the surrounding box.
   const { text: textStyle, layout } = splitTextStyle(flattenStyle(style));
@@ -345,7 +373,9 @@ export function TextInput(props: TextInputProps) {
   const showCursor = focusable.isFocused && !caretHidden && canEdit;
   const cursorColorValue = cursorColor ? resolveColor(cursorColor)?.color : undefined;
   const cursorProps = cursorColorValue ? { backgroundColor: cursorColorValue } : { inverse: true };
-  const placeholderColor = placeholderTextColor ? resolveColor(placeholderTextColor)?.color : undefined;
+  const placeholderColor = placeholderTextColor
+    ? resolveColor(placeholderTextColor)?.color
+    : undefined;
   const placeholderProps = placeholderColor ? { color: placeholderColor } : { dimColor: true };
 
   // Single-line inputs scroll horizontally to keep the cursor visible.
@@ -354,7 +384,8 @@ export function TextInput(props: TextInputProps) {
   if (!multiline && available !== undefined) {
     const widths = shown.map((part) => stringWidth(part));
     start = Math.min(scrollRef.current, cursor);
-    let used = widths.slice(start, cursor).reduce((sum, width) => sum + width, 0) + (widths[cursor] ?? 1);
+    let used =
+      widths.slice(start, cursor).reduce((sum, width) => sum + width, 0) + (widths[cursor] ?? 1);
     while (used > available && start < cursor) {
       used -= widths[start] ?? 0;
       start++;
@@ -398,7 +429,11 @@ export function TextInput(props: TextInputProps) {
 
   return (
     <Box ref={boxRef} {...box}>
-      <InkText {...resolved.ink} dimColor={resolved.dim || undefined} wrap={multiline ? 'wrap' : 'truncate-end'}>
+      <InkText
+        {...resolved.ink}
+        dimColor={resolved.dim || undefined}
+        wrap={multiline ? 'wrap' : 'truncate-end'}
+      >
         {content}
       </InkText>
       {onLayout ? <LayoutObserver target={boxRef} onLayout={onLayout} /> : null}

@@ -1,7 +1,9 @@
 import { warnOnce } from '../internal/warn.js';
 
 const unsupported = (name: string) =>
-  new Error(`${name} is not available in react-native-ink: terminals have no native modules or views.`);
+  new Error(
+    `${name} is not available in react-native-ink: terminals have no native modules or views.`,
+  );
 
 /** There are no native modules; property lookups return undefined, like a missing module. */
 export const NativeModules: Record<string, any> = {};

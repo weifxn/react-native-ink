@@ -57,7 +57,10 @@ export function Switch({
       }}
     >
       {({ focused }) => (
-        <InternalText style={{ color: track, opacity: disabled ? 0.5 : undefined }} focusInverse={focused && !disabled}>
+        <InternalText
+          style={{ color: track, opacity: disabled ? 0.5 : undefined }}
+          focusInverse={focused && !disabled}
+        >
           [{on ? ' ' : ''}
           <Text style={{ color: thumbColor ?? track }}>{thumb}</Text>
           {on ? '' : ' '}]

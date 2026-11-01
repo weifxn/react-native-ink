@@ -1,9 +1,21 @@
 import chalk from 'chalk';
-import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
+import {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { Box, Text as InkText, useBoxMetrics, type DOMElement } from 'ink';
 import { StyleSheet } from '../../apis/StyleSheet.js';
 import { resolveAccessibility, type AccessibilityProps } from '../../internal/accessibility.js';
-import { createSyntheticEvent, type LayoutChangeEvent, type NativeSyntheticEvent } from '../../internal/events.js';
+import {
+  createSyntheticEvent,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+} from '../../internal/events.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
 import { currentStdout } from '../../internal/root.js';
@@ -24,7 +36,9 @@ import { rasterize, type ResizeMode } from './rasterize.js';
 
 export type { ImageSourcePropType, ImageURISource };
 
-export type ImageLoadEvent = NativeSyntheticEvent<{ source: { width: number; height: number; uri: string } }>;
+export type ImageLoadEvent = NativeSyntheticEvent<{
+  source: { width: number; height: number; uri: string };
+}>;
 export type ImageErrorEvent = NativeSyntheticEvent<{ error: string }>;
 
 export interface ImageProps extends AccessibilityProps {
@@ -101,7 +115,11 @@ export function Image(props: ImageProps) {
   const uriSource = resolveSource(src ? { uri: src } : source);
   const uri = uriSource?.uri;
   const flat = (flattenStyle(style) ?? {}) as ImageStyle;
-  const resizeMode = resizeModeProp ?? flat.resizeMode ?? (flat.objectFit ? OBJECT_FIT[flat.objectFit] : undefined) ?? 'cover';
+  const resizeMode =
+    resizeModeProp ??
+    flat.resizeMode ??
+    (flat.objectFit ? OBJECT_FIT[flat.objectFit] : undefined) ??
+    'cover';
 
   const [state, setState] = useState<{ uri?: string; bitmap?: Bitmap; error?: string }>({});
   const callbacks = useRef({ onLoadStart, onLoad, onLoadEnd, onError });
@@ -116,7 +134,9 @@ export function Image(props: ImageProps) {
         if (cancelled) return;
         setState({ uri, bitmap });
         callbacks.current.onLoad?.(
-          createSyntheticEvent('load', { source: { width: bitmap.width, height: bitmap.height, uri } }),
+          createSyntheticEvent('load', {
+            source: { width: bitmap.width, height: bitmap.height, uri },
+          }),
         );
         callbacks.current.onLoadEnd?.();
       },
@@ -139,7 +159,8 @@ export function Image(props: ImageProps) {
   const boxRef = useRef<DOMElement>(null);
   useImperativeHandle(
     ref,
-    () => (boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance)),
+    () =>
+      boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance),
     [],
   );
   const metrics = useBoxMetrics(boxRef);
@@ -151,7 +172,8 @@ export function Image(props: ImageProps) {
     flat.flex !== undefined ||
     (typeof flat.flexGrow === 'number' && flat.flexGrow > 0) ||
     (flat.position === 'absolute' &&
-      ((flat.left !== undefined && flat.right !== undefined) || (flat.top !== undefined && flat.bottom !== undefined)));
+      ((flat.left !== undefined && flat.right !== undefined) ||
+        (flat.top !== undefined && flat.bottom !== undefined)));
 
   let columns = positive(flat.width) ?? positive(widthProp) ?? positive(uriSource?.width);
   let rows = positive(flat.height) ?? positive(heightProp) ?? positive(uriSource?.height);
@@ -163,13 +185,18 @@ export function Image(props: ImageProps) {
     if (columns === undefined && rows === undefined) {
       columns = Math.min(bitmap.width, currentStdout().columns || 80);
     }
-    if (columns !== undefined && rows === undefined) rows = Math.max(1, Math.ceil((columns * ratio) / 2));
-    if (rows !== undefined && columns === undefined) columns = Math.max(1, Math.round((rows * 2) / ratio));
+    if (columns !== undefined && rows === undefined)
+      rows = Math.max(1, Math.ceil((columns * ratio) / 2));
+    if (rows !== undefined && columns === undefined)
+      columns = Math.max(1, Math.round((rows * 2) / ratio));
   }
 
   const canDraw = chalk.level > 0 && isUnicodeSupported();
   const lines = useMemo(
-    () => (bitmap && canDraw && columns && rows ? rasterize(bitmap, columns, rows, resizeMode) : undefined),
+    () =>
+      bitmap && canDraw && columns && rows
+        ? rasterize(bitmap, columns, rows, resizeMode)
+        : undefined,
     [bitmap, canDraw, columns, rows, resizeMode],
   );
 
@@ -193,7 +220,11 @@ export function Image(props: ImageProps) {
   );
 }
 
-function withCallbacks<T>(promise: Promise<T>, success?: (value: T) => void, failure?: (error: unknown) => void) {
+function withCallbacks<T>(
+  promise: Promise<T>,
+  success?: (value: T) => void,
+  failure?: (error: unknown) => void,
+) {
   if (success || failure) promise.then(success, failure ?? (() => {}));
   return promise;
 }
@@ -229,7 +260,12 @@ Image.queryCache = async (urls: string[]): Promise<Record<string, 'memory'>> =>
 Image.resolveAssetSource = (source: ImageSourcePropType) => {
   const resolved = resolveSource(source);
   return resolved
-    ? { uri: resolved.uri ?? '', width: resolved.width ?? 0, height: resolved.height ?? 0, scale: resolved.scale ?? 1 }
+    ? {
+        uri: resolved.uri ?? '',
+        width: resolved.width ?? 0,
+        height: resolved.height ?? 0,
+        scale: resolved.scale ?? 1,
+      }
     : null;
 };
 
@@ -240,10 +276,20 @@ export interface ImageBackgroundProps extends ImageProps {
 }
 
 /** An Image filling a View, with children drawn on top. */
-export function ImageBackground({ children, style, imageStyle, imageRef, ...props }: ImageBackgroundProps) {
+export function ImageBackground({
+  children,
+  style,
+  imageStyle,
+  imageRef,
+  ...props
+}: ImageBackgroundProps) {
   return (
     <View style={style as StyleProp<never>}>
-      <Image {...props} ref={imageRef} style={[StyleSheet.absoluteFill as ImageStyle, imageStyle]} />
+      <Image
+        {...props}
+        ref={imageRef}
+        style={[StyleSheet.absoluteFill as ImageStyle, imageStyle]}
+      />
       {children}
     </View>
   );
