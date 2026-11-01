@@ -8,7 +8,7 @@ import {
 } from '../internal/units.js';
 import { warnOnce } from '../internal/warn.js';
 import { resolveBorders, stripUndefined } from './borders.js';
-import { resolveColor } from './colors.js';
+import { blendColor, resolveColor } from './colors.js';
 import { classifyUnhandled } from './support.js';
 import type { ViewStyle } from './types.js';
 
@@ -36,6 +36,8 @@ export interface ViewStyleOptions {
   cellSize?: CellSize;
   /** The parent's flex direction: `flexBasis` is a length along the parent's main axis. */
   parentDirection?: string;
+  /** The color behind the view (an Ink color), which translucent colors are mixed with. */
+  background?: string;
 }
 
 /** React Native's View defaults. Ink's Box defaults to `row` and `flexShrink: 1`. */
@@ -500,11 +502,21 @@ export function resolveViewStyle(
         `${component} style "backgroundColor" has an invalid color (${String(s.backgroundColor)}) and was ignored.`,
       );
     } else if (resolved?.color) {
-      box.backgroundColor = resolved.color;
+      box.backgroundColor = blendColor(resolved, options.background);
     }
   }
 
-  Object.assign(box, resolveBorders(style, { component, dim, hidden, unicode: options.unicode }));
+  Object.assign(
+    box,
+    resolveBorders(style, {
+      component,
+      dim,
+      hidden,
+      unicode: options.unicode,
+      // A border is drawn over the view's own background.
+      background: (box.backgroundColor as string | undefined) ?? options.background,
+    }),
+  );
 
   return { box: stripUndefined(box), dim, hidden };
 }

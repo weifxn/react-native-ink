@@ -166,8 +166,7 @@ src/
 3. Any other color becomes `#rrggbb`. Chalk reduces it to 256 or 16 colors according to the terminal's support, and honors `FORCE_COLOR` and `NO_COLOR`.
 4. Alpha:
    - `alpha === 0` means no color (transparent).
-   - `0 < alpha < 1`: the color is used fully opaque.
-   - For a text `color` with `alpha ≤ 0.5`, the text is also dimmed (approximation).
+   - `0 < alpha < 1`: the color is mixed with the color behind it and drawn opaque (a cell has one color). Behind a view's background is the background it inherits; behind a border or text, the view's or text's own background, else the inherited one. ANSI names and `ansi256(n)` mix as xterm draws them. Where nothing behind has a color, it's the terminal's own background, which few terminals report: black, or white when `COLORFGBG` says the terminal is light. (Before 0.1.0 shipped, translucent colors were drawn opaque, and text at `alpha ≤ 0.5` was dimmed instead.)
 5. Invalid colors warn once and are ignored.
 
 `processColor(color)` returns React Native's integer form (`0xaarrggbb`) for compatibility.

@@ -91,3 +91,31 @@ describe('backgrounds behind what the library draws', () => {
     expect(output).not.toContain('\u001B[48;');
   });
 });
+
+describe('translucent colors', () => {
+  it('mixes a border with the background under it, as on a phone', () => {
+    const output = renderColored(
+      <View style={{ backgroundColor: '#ffffff' }}>
+        <View style={{ borderWidth: 1, borderColor: '#00000040', width: 6 }}>
+          <Text>hi</Text>
+        </View>
+      </View>,
+      10,
+    );
+    // Black at a quarter over white.
+    expect(output).toContain('\u001B[38;2;191;191;191m');
+    expect(output).not.toContain('\u001B[38;2;0;0;0m');
+  });
+
+  it("mixes a view's background with the one behind it", () => {
+    const output = renderColored(
+      <View style={{ backgroundColor: '#000000' }}>
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.4)', width: 4 }}>
+          <Text>hi</Text>
+        </View>
+      </View>,
+      10,
+    );
+    expect(output).toContain('\u001B[48;2;102;102;102m');
+  });
+});

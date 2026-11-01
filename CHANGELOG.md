@@ -36,6 +36,7 @@ First release of the rebuild on Ink 8. The 2019 prototype is still in git histor
 - Tab follows the tree, not mount order: a focusable that mounts late (after its data loaded) takes its place, and keeps focus while the order is restored.
 - A focused item is scrolled into view by every enclosing ScrollView, not only the nearest.
 - `pagingEnabled`: ←/→ (↑/↓ vertically) move a page and land on page boundaries; keyboard scrolls fire `onScrollEndDrag` and `onMomentumScrollEnd`.
+- Translucent colors (`rgba()`, `#rrggbbaa`) are mixed with the background behind them instead of being drawn opaque, so a faint border or highlight looks as it does on a phone.
 - Wrapped text starts each row at a word: Ink's wrapping put the space a row broke at on the next row whenever the row before was exactly full. A paragraph's own indentation stays.
 - The mouse, opt-in with `mouse: true`: a click presses (long press too) or focuses a TextInput with the cursor where it landed, and the wheel scrolls the ScrollView under the pointer.
 - Modal content keeps the React context of the Modal's ancestors (it renders through a portal), and with `AppRegistry` covers the wrapper component's chrome as well.

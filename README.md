@@ -111,7 +111,7 @@ The terminal has to report where the app is, so it needs `alternateScreen: true`
 
 - **Units are cells.** `width: 20` is 20 columns and `height: 3` is 3 rows. Cells are about twice as tall as they are wide. Code written in dp for a phone sets a cell size instead (see [below](#sharing-code-with-a-react-native-app)).
 - **Layout is React Native's Yoga.** Views stack in a column with `flexShrink: 0`. `flex: 1` grows from a zero basis. Percentages and `margin: 'auto'` work.
-- **Colors.** `'red'`, `'green'` and the other ANSI names use the terminal's own palette; every other CSS color is exact truecolor (downsampled automatically). `PlatformColor('redBright')` names palette colors directly.
+- **Colors.** `'red'`, `'green'` and the other ANSI names use the terminal's own palette; every other CSS color is exact truecolor (downsampled automatically). A translucent color (`rgba()`, `#rrggbbaa`) is mixed with the background behind it, since a cell has one color: a `'#00000040'` border over white comes out light gray, as on a phone. `PlatformColor('redBright')` names palette colors directly.
 - **Text.** Bold, italic, underline, strikethrough, `textTransform`, `textAlign` and `numberOfLines` with ellipsis all work. Light font weights and `opacity < 1` render dim. Font sizes and families are ignored.
 - **Borders.** A side is drawn when its width is above 0. `borderRadius` gives rounded corners and `borderStyle: 'dashed'` dashed lines. Ink names such as `'double'` are accepted too.
 - **Transforms.** `translateX`/`translateY` shift by whole cells; other transforms are ignored.

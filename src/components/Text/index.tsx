@@ -144,7 +144,7 @@ function TextImpl(props: TextImplProps) {
 
   const nested = inherited.inText;
   const { text: textStyle, layout } = splitTextStyle(flattenStyle(style));
-  const resolved = resolveTextStyle(textStyle);
+  const resolved = resolveTextStyle(textStyle, 'Text', inheritedBackground);
   const transform = resolved.transform ?? inherited.transform;
   const dim = resolved.dim || (!nested && inherited.dim);
   const hidden = resolved.hidden || (!nested && inherited.hidden);
@@ -236,7 +236,14 @@ function TextImpl(props: TextImplProps) {
 
   const view = resolveViewStyle(
     { ...layout, opacity: textStyle.opacity },
-    { component: 'Text', defaults: TEXT_BOX_DEFAULTS, cellSize: getCellSize(), parentDirection },
+    {
+      component: 'Text',
+      defaults: TEXT_BOX_DEFAULTS,
+      cellSize: getCellSize(),
+      parentDirection,
+      // The box's background is the text's own: borders are drawn over it.
+      background: resolved.backgroundColor ?? inheritedBackground,
+    },
   );
   let box = { ...view.box };
   if (resolved.backgroundColor !== undefined && !hidden)

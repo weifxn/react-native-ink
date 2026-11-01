@@ -24,7 +24,7 @@ import { useFocusable } from '../../internal/focus.js';
 import { usePointerTarget } from '../../internal/pointer.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
-import { resolveColor, withBorderBackground } from '../../style/colors.js';
+import { blendColor, resolveColor, withBorderBackground } from '../../style/colors.js';
 import { BackgroundColorContext } from '../../internal/contexts.js';
 import { flattenStyle } from '../../style/flatten.js';
 import { resolveTextStyle, splitTextStyle } from '../../style/text.js';
@@ -364,12 +364,14 @@ export function TextInput(props: TextInputProps) {
 
   // Styles: text props go to the text, layout props to the surrounding box.
   const { text: textStyle, layout } = splitTextStyle(flattenStyle(style));
-  const resolved = resolveTextStyle(textStyle, 'TextInput');
+  const resolved = resolveTextStyle(textStyle, 'TextInput', inheritedBackground);
   const view = resolveViewStyle(layout, {
     component: 'TextInput',
     defaults: INPUT_BOX_DEFAULTS,
     cellSize: getCellSize(),
     parentDirection,
+    // The box's background is the text's own: borders are drawn over it.
+    background: resolved.backgroundColor ?? inheritedBackground,
   });
   let box = { ...view.box, ...resolveAccessibility({ accessibilityRole: 'textbox', ...props }) };
   if (resolved.backgroundColor) box.backgroundColor = resolved.backgroundColor;
@@ -389,11 +391,15 @@ export function TextInput(props: TextInputProps) {
 
   const shown = secureTextEntry ? parts.map((part) => (part === '\n' ? part : '•')) : parts;
   const showCursor = focusable.isFocused && !caretHidden && canEdit;
-  const cursorColorValue = cursorColor ? resolveColor(cursorColor)?.color : undefined;
+  // Over the input's own background (translucent colors are mixed with it).
+  const inputBackground = (box.backgroundColor as string | undefined) ?? inheritedBackground;
+  const opaque = (value: typeof cursorColor) => {
+    const resolved = value ? resolveColor(value) : undefined;
+    return resolved ? blendColor(resolved, inputBackground) : undefined;
+  };
+  const cursorColorValue = opaque(cursorColor);
   const cursorProps = cursorColorValue ? { backgroundColor: cursorColorValue } : { inverse: true };
-  const placeholderColor = placeholderTextColor
-    ? resolveColor(placeholderTextColor)?.color
-    : undefined;
+  const placeholderColor = opaque(placeholderTextColor);
   const placeholderProps = placeholderColor ? { color: placeholderColor } : { dimColor: true };
 
   // Single-line inputs scroll horizontally to keep the cursor visible.

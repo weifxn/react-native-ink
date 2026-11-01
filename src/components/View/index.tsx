@@ -96,7 +96,12 @@ export function View(props: ViewProps & Partial<ViewInternalProps>) {
   );
 
   const cellSize = getCellSize();
-  const resolved = resolveViewStyle(flattenStyle(style), { component, cellSize, parentDirection });
+  const resolved = resolveViewStyle(flattenStyle(style), {
+    component,
+    cellSize,
+    parentDirection,
+    background: inheritedBackground,
+  });
   const dim = inherited.dim || resolved.dim || Boolean(dimText);
   const hidden = inherited.hidden || resolved.hidden;
   const inverse = inherited.inverse || Boolean(inverseText);

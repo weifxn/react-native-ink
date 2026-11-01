@@ -219,6 +219,7 @@ export function Image(props: ImageProps) {
     defaults: VIEW_DEFAULTS,
     cellSize,
     parentDirection,
+    background: inheritedBackground,
   });
   const box = withBorderBackground(
     { ...view.box, ...resolveAccessibility({ accessibilityLabel: alt, ...props }) },

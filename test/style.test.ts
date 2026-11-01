@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveBorders, NAMED_BOX_STYLES } from '../src/style/borders.js';
-import { createPlatformColor, processColor, resolveColor } from '../src/style/colors.js';
+import {
+  blendColor,
+  createPlatformColor,
+  processColor,
+  resolveColor,
+} from '../src/style/colors.js';
 import { flattenStyle } from '../src/style/flatten.js';
 import { STYLE_SUPPORT } from '../src/style/support.js';
 import {
@@ -85,6 +90,22 @@ describe('resolveColor', () => {
       alpha: 1,
     });
     expect(resolveColor(createPlatformColor(['systemBlue']))).toBeNull();
+  });
+});
+
+describe('blendColor', () => {
+  it('mixes a translucent color with the one behind it', () => {
+    const color = (value: string) => resolveColor(value)!;
+    expect(blendColor(color('#00000040'), '#ffffff')).toBe('#bfbfbf');
+    // Named and 256-color backgrounds, as xterm draws them.
+    expect(blendColor(color('rgba(255,255,255,0.5)'), 'blue')).toBe('#8080f7');
+    expect(blendColor(color('rgba(255,255,255,0.5)'), 'ansi256(196)')).toBe('#ff8080');
+  });
+
+  it('leaves opaque colors as they are, and a transparent one undefined', () => {
+    expect(blendColor(resolveColor('#123456')!, '#ffffff')).toBe('#123456');
+    expect(blendColor(resolveColor('red')!, '#ffffff')).toBe('red');
+    expect(blendColor(resolveColor('transparent')!, '#ffffff')).toBeUndefined();
   });
 });
 
@@ -365,11 +386,23 @@ describe('resolveTextStyle', () => {
     expect(resolveFontWeight(weight)).toBe(expected);
   });
 
-  it('handles translucency and opacity', () => {
-    expect(resolveTextStyle({ color: 'rgba(255,255,255,0.4)' })).toMatchObject({
-      dim: true,
+  it('mixes translucent colors with the color behind them', () => {
+    expect(resolveTextStyle({ color: 'rgba(255,255,255,0.4)' }, 'Text', '#000000')).toMatchObject({
+      ink: { color: '#666666' },
+      dim: false,
       hidden: false,
     });
+    // The text over its own background, which is mixed with what's behind it first.
+    expect(
+      resolveTextStyle(
+        { color: '#00000080', backgroundColor: 'rgba(255, 0, 0, 0.5)' },
+        'Text',
+        '#ffffff',
+      ),
+    ).toMatchObject({ backgroundColor: '#ff7f7f', ink: { color: '#7f3f3f' } });
+  });
+
+  it('handles transparency and opacity', () => {
     expect(resolveTextStyle({ color: 'transparent' })).toMatchObject({ hidden: true });
     expect(resolveTextStyle({ opacity: 0.5 })).toMatchObject({ dim: true });
     expect(resolveTextStyle({ opacity: 0 })).toMatchObject({ hidden: true });
