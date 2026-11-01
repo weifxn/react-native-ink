@@ -1,7 +1,7 @@
 import { Fragment, type ComponentType, type ReactElement } from 'react';
-import { renderToString as inkRenderToString, type Instance, type RenderOptions } from 'ink';
+import { renderToString as inkRenderToString, type Instance } from 'ink';
 import { AppRoot } from '../internal/AppRoot.js';
-import { allocateRootTag, render } from '../render.js';
+import { allocateRootTag, render, type RenderOptions } from '../render.js';
 
 export type ComponentProvider = () => ComponentType<any>;
 export type ComponentProviderInstrumentationHook = (
@@ -19,7 +19,7 @@ export interface AppConfig {
   section?: boolean;
 }
 
-/** `initialProps` for the root component, plus Ink's render options (stdout, stdin, exitOnCtrlC, ...). */
+/** `initialProps` for the root component, plus the render options (stdout, stdin, exitOnCtrlC, mouse, ...). */
 export interface AppParameters extends RenderOptions {
   initialProps?: Record<string, unknown>;
   rootTag?: number;

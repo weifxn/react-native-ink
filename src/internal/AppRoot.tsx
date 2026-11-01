@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,6 +16,7 @@ import {
   useIsScreenReaderEnabled,
   useStdin,
   useStdout,
+  type DOMElement,
 } from 'ink';
 import { dispatchBackPress, hasBackHandlers, subscribeBackHandlers } from '../apis/BackHandler.js';
 import { DialogHost, ToastHost } from '../apis/dialogs.js';
@@ -28,6 +30,8 @@ import {
   type ModalHost,
   type ModalLayer,
 } from './modalHost.js';
+import { mouseSourceFor } from './mouse.js';
+import { createPointerDispatcher } from './mouseDispatch.js';
 import { registerRoot } from './root.js';
 import { pageScroller, type ScrollAction } from './scrollers.js';
 import { useTerminalSize } from './useTerminalSize.js';
@@ -123,11 +127,38 @@ export function AppRoot({ children, rootTag = 0 }: AppRootProps) {
     { isActive: isRawModeSupported },
   );
 
+  // The mouse, when `render` was asked for it: clicks and the wheel, hit-tested from Ink's root.
+  const rootRef = useRef<DOMElement>(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  useLayoutEffect(() => {
+    const source = mouseSourceFor(rootTag);
+    if (!source) return undefined;
+    const dispatcher = createPointerDispatcher({
+      node: () => rootRef.current?.parentNode,
+      rows: () => rowsRef.current,
+      fromTop: source.fromTop,
+      blur: () => {
+        if (focusedBeforeInput.current === undefined) return;
+        disableFocus();
+        enableFocus();
+      },
+    });
+    const unsubscribe = source.subscribe((event) => dispatcher.dispatch(event));
+    return () => {
+      unsubscribe();
+      dispatcher.dispose();
+    };
+  }, [rootTag, disableFocus, enableFocus]);
+  // Ink unmounts on a signal before the process dies, which runs this synchronously.
+  useLayoutEffect(() => () => mouseSourceFor(rootTag)?.stop(), [rootTag]);
+
   return (
     <RootTagContext.Provider value={rootTag}>
       <ModalHostContext.Provider value={host}>
         <ModalLayersContext.Provider value={layers}>
           <Box
+            ref={rootRef}
             flexDirection="column"
             flexShrink={0}
             minHeight={layers.length > 0 ? rows : undefined}

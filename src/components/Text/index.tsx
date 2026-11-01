@@ -6,6 +6,7 @@ import {
   useRef,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from 'react';
 import { Box, Text as InkText, Transform, useInput, type DOMElement } from 'ink';
 import { resolveAccessibility, type AccessibilityProps } from '../../internal/accessibility.js';
@@ -22,6 +23,7 @@ import {
 import { useFocusable } from '../../internal/focus.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
+import { usePointerTarget } from '../../internal/pointer.js';
 import {
   alignLine,
   blankLine,
@@ -49,11 +51,14 @@ export interface TextProps extends AccessibilityProps {
   numberOfLines?: number;
   /** Where the ellipsis goes when `numberOfLines` is set. `clip` cuts without an ellipsis. */
   ellipsizeMode?: 'head' | 'middle' | 'tail' | 'clip';
-  /** Makes the text focusable (Tab); Enter or Space presses it. */
+  /**
+   * Makes the text focusable (Tab); Enter or Space presses it, and so does a click (with
+   * `mouse: true`) on text that isn't nested in other text.
+   */
   onPress?: (event: GestureResponderEvent) => void;
   onPressIn?: (event: GestureResponderEvent) => void;
   onPressOut?: (event: GestureResponderEvent) => void;
-  /** @remarks Not triggered from the keyboard. */
+  /** Called when the mouse button is held 500 ms. @remarks Not triggered from the keyboard. */
   onLongPress?: (event: GestureResponderEvent) => void;
   disabled?: boolean;
   onLayout?: (event: LayoutChangeEvent) => void;
@@ -85,6 +90,8 @@ export interface TextProps extends AccessibilityProps {
 
 interface TextImplProps extends TextProps {
   focusInverse?: boolean;
+  /** Receives the text's box (text nested in other text has none). */
+  nodeRef?: RefObject<DOMElement | null>;
 }
 
 /** Text layout box defaults: a row so wrapping happens at the box width; shrinks like web text. */
@@ -119,16 +126,18 @@ function TextImpl(props: TextImplProps) {
     onLayout,
     ref,
     focusInverse,
+    nodeRef,
   } = props;
   const inherited = useContext(TextInheritanceContext);
   const parentDirection = useContext(FlexDirectionContext);
   const inheritedBackground = useContext(BackgroundColorContext);
-  const boxRef = useRef<DOMElement>(null);
+  const ownRef = useRef<DOMElement>(null);
+  const boxRef = nodeRef ?? ownRef;
   useImperativeHandle(
     ref,
     () =>
       boxRef.current ? attachNativeMethods(boxRef.current) : (null as unknown as HostInstance),
-    [],
+    [boxRef],
   );
 
   const nested = inherited.inText;
@@ -171,7 +180,8 @@ function TextImpl(props: TextImplProps) {
       (lines !== undefined && (lines > 1 || clip)) ||
       align !== undefined ||
       onLayout !== undefined ||
-      ref !== undefined);
+      ref !== undefined ||
+      nodeRef !== undefined);
 
   const a11y = resolveAccessibility(props);
   const inkProps = {
@@ -245,19 +255,35 @@ function TextImpl(props: TextImplProps) {
 }
 
 function PressableText(props: TextProps) {
-  const { onPress, onPressIn, onPressOut, disabled } = props;
-  const focusable = useFocusable({ enabled: !disabled });
+  const { onPress, onPressIn, onPressOut, onLongPress, disabled } = props;
+  const nodeRef = useRef<DOMElement>(null);
+  const focusable = useFocusable({ enabled: !disabled, nodeRef });
   useInput(
     (input, key) => {
       if (!key.return && input !== ' ') return;
-      const event = createPressEvent('press');
+      const event = createPressEvent('press', nodeRef.current);
       onPressIn?.(event);
       onPressOut?.(event);
       onPress?.(event);
     },
     { isActive: focusable.receivesInput && !disabled },
   );
-  return <TextImpl {...props} focusInverse={focusable.isFocused} />;
+  usePointerTarget(
+    nodeRef,
+    disabled
+      ? null
+      : {
+          pressIn: (at) => onPressIn?.(createPressEvent('pressIn', nodeRef.current, at)),
+          pressOut(at, activate) {
+            onPressOut?.(createPressEvent('pressOut', nodeRef.current, at));
+            if (activate) onPress?.(createPressEvent('press', nodeRef.current, at));
+          },
+          longPress: onLongPress
+            ? (at) => onLongPress(createPressEvent('longPress', nodeRef.current, at))
+            : undefined,
+        },
+  );
+  return <TextImpl {...props} nodeRef={nodeRef} focusInverse={focusable.isFocused} />;
 }
 
 /** Internal: Text that can draw itself in inverse video (focus indicator of composite components). */

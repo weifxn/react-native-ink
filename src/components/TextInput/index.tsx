@@ -21,6 +21,7 @@ import stringWidth from 'string-width';
 import { resolveAccessibility } from '../../internal/accessibility.js';
 import { createSyntheticEvent, type NativeSyntheticEvent } from '../../internal/events.js';
 import { useFocusable } from '../../internal/focus.js';
+import { usePointerTarget } from '../../internal/pointer.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
 import { resolveColor, withBorderBackground } from '../../style/colors.js';
@@ -164,9 +165,13 @@ function keyName(input: string, key: Key): string | undefined {
   return undefined;
 }
 
+/** Yoga's Edge.Left. */
+const EDGE_LEFT = 0;
+
 /**
  * A text field. Typing, pasting, ←/→, Home/End (Ctrl+A/E), Backspace/Delete, Ctrl+U/K/W and,
- * when multiline, ↑/↓ are supported. Tab moves focus away; Esc blurs.
+ * when multiline, ↑/↓ are supported. Tab moves focus away; Esc blurs. With the mouse on, a click
+ * focuses it, with the cursor on the clicked character of a single-line input.
  */
 export function TextInput(props: TextInputProps) {
   const {
@@ -216,6 +221,8 @@ export function TextInput(props: TextInputProps) {
   const inheritedBackground = useContext(BackgroundColorContext);
   const instanceRef = useRef<TextInputInstance | null>(null);
   const scrollRef = useRef(0);
+  /** What a single-line input shows, for placing the cursor where it's clicked. */
+  const visibleRef = useRef<{ start: number; widths: number[] }>({ start: 0, widths: [] });
 
   const textEvent = (type: string) =>
     createSyntheticEvent(type, { text: valueRef.current, target: 0 }, instanceRef.current);
@@ -392,8 +399,8 @@ export function TextInput(props: TextInputProps) {
   // Single-line inputs scroll horizontally to keep the cursor visible.
   let start = 0;
   let end = shown.length;
+  const widths = multiline ? [] : shown.map((part) => stringWidth(part));
   if (!multiline && available !== undefined) {
-    const widths = shown.map((part) => stringWidth(part));
     start = Math.min(scrollRef.current, cursor);
     let used =
       widths.slice(start, cursor).reduce((sum, width) => sum + width, 0) + (widths[cursor] ?? 1);
@@ -408,6 +415,33 @@ export function TextInput(props: TextInputProps) {
     }
     scrollRef.current = start;
   }
+  visibleRef.current = { start, widths };
+
+  // A click focuses the input and, on a single line, puts the cursor on the clicked character.
+  usePointerTarget(
+    boxRef,
+    canEdit
+      ? {
+          pressIn(at) {
+            const yoga = boxRef.current?.yogaNode;
+            if (!multiline && yoga) {
+              const { start: first, widths: shownWidths } = visibleRef.current;
+              const column =
+                at.cellX - yoga.getComputedBorder(EDGE_LEFT) - yoga.getComputedPadding(EDGE_LEFT);
+              let index = first;
+              let used = 0;
+              while (index < shownWidths.length && used + shownWidths[index]! <= column) {
+                used += shownWidths[index]!;
+                index++;
+              }
+              commitRef.current({ value: valueRef.current, cursor: index });
+            }
+            focusableRef.current.focus();
+          },
+          pressOut() {},
+        }
+      : null,
+  );
 
   let content: ReactNode;
   if (shown.length === 0) {

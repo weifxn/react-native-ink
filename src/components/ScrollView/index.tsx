@@ -111,6 +111,11 @@ const clamp = (value: number, max: number) => Math.max(0, Math.min(Math.round(va
 /** Yoga's Overflow.Scroll: children are measured without a limit along the scroll axis. */
 const YOGA_OVERFLOW_SCROLL = 2;
 
+/** Cells a step of the mouse wheel scrolls, as most terminal programs do. */
+const WHEEL_STEP = 3;
+/** Wheel steps closer together than this are one burst, which turns one page when paging. */
+const PAGE_WHEEL_GAP_MS = 200;
+
 interface IndicatorProps {
   horizontal: boolean;
   size: number;
@@ -321,16 +326,47 @@ export function ScrollView(props: ScrollViewProps) {
   // outermost one (see AppRoot), as they scroll a browser's page.
   const scrollable = useRef(false);
   scrollable.current = scrollEnabled && overflows && scopeActive;
-  const latestScrollBy = useRef(scrollBy);
-  latestScrollBy.current = scrollBy;
-  useEffect(() => {
-    if (horizontal) return undefined;
-    return registerScroller({
-      depth,
-      canScroll: () => scrollable.current,
-      scroll: (action) => latestScrollBy.current(action),
-    });
-  }, [horizontal, depth]);
+
+  // The mouse wheel: a few cells a step; a page a burst when paging, since a wheel or trackpad
+  // sends steps in quick succession and each would otherwise turn a page.
+  const lastWheel = useRef(0);
+  const wheel = useCallback(
+    (direction: 1 | -1) => {
+      if (!scrollable.current) return false;
+      const { current: position, maxX: limitX, maxY: limitY } = live.current;
+      const at = horizontal ? position.x : position.y;
+      const limit = horizontal ? limitX : limitY;
+      if (direction < 0 ? at <= 0 : at >= limit) return false;
+      if (paging) {
+        const now = Date.now();
+        const burst = now - lastWheel.current < PAGE_WHEEL_GAP_MS;
+        lastWheel.current = now;
+        if (!burst) scrollBy(direction < 0 ? 'up' : 'down');
+        return true;
+      }
+      const target = clamp(at + direction * WHEEL_STEP, limit);
+      userScroll.current = true;
+      if (horizontal) scrollTo(target);
+      else scrollTo(undefined, target);
+      return true;
+    },
+    [horizontal, paging, scrollBy, scrollTo],
+  );
+
+  const latest = useRef({ scrollBy, wheel });
+  latest.current = { scrollBy, wheel };
+  useEffect(
+    () =>
+      registerScroller({
+        depth,
+        horizontal,
+        node: () => outerRef.current,
+        canScroll: () => scrollable.current,
+        scroll: (action) => latest.current.scrollBy(action),
+        wheel: (direction) => latest.current.wheel(direction),
+      }),
+    [horizontal, depth],
+  );
 
   const callbacks = useRef({ onScroll, onContentSizeChange, onScrollEndDrag, onMomentumScrollEnd });
   callbacks.current = { onScroll, onContentSizeChange, onScrollEndDrag, onMomentumScrollEnd };

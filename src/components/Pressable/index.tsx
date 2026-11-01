@@ -8,6 +8,7 @@ import {
 } from '../../internal/events.js';
 import { useFocusable } from '../../internal/focus.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
+import { usePointerTarget } from '../../internal/pointer.js';
 import { resolveColor } from '../../style/colors.js';
 import type { ColorValue, StyleProp, ViewStyle } from '../../style/types.js';
 import { View, type Insets, type ViewProps } from '../View/index.js';
@@ -39,11 +40,11 @@ export interface FocusableInstance extends HostInstance {
 export interface PressableProps extends Omit<ViewProps, 'children' | 'style' | 'ref'> {
   children?: ReactNode | ((state: PressableStateCallbackType) => ReactNode);
   style?: StyleProp<ViewStyle> | ((state: PressableStateCallbackType) => StyleProp<ViewStyle>);
-  /** Called when the focused component is activated with Enter or Space. */
+  /** Called on a click, or when the focused component is activated with Enter or Space. */
   onPress?: ((event: GestureResponderEvent) => void) | null;
   onPressIn?: ((event: GestureResponderEvent) => void) | null;
   onPressOut?: ((event: GestureResponderEvent) => void) | null;
-  /** @remarks Not triggered from the keyboard. */
+  /** Called when the mouse button is held `delayLongPress` ms. @remarks Not triggered from the keyboard. */
   onLongPress?: ((event: GestureResponderEvent) => void) | null;
   onFocus?: ((event: NativeSyntheticEvent<object>) => void) | null;
   onBlur?: ((event: NativeSyntheticEvent<object>) => void) | null;
@@ -56,7 +57,7 @@ export interface PressableProps extends Omit<ViewProps, 'children' | 'style' | '
   onHoverIn?: ((event: unknown) => void) | null;
   /** @remarks Ignored in terminals. */
   onHoverOut?: ((event: unknown) => void) | null;
-  /** @remarks Ignored in terminals. */
+  /** How long the mouse button must be held for `onLongPress` (default 500 ms). */
   delayLongPress?: number | null;
   /** @remarks Ignored in terminals. */
   unstable_pressDelay?: number;
@@ -102,10 +103,10 @@ export function PressableBase(props: PressableBaseProps) {
     focusIndicator = true,
     component = 'Pressable',
     ref,
-    onLongPress: _onLongPress,
+    onLongPress,
     onHoverIn: _onHoverIn,
     onHoverOut: _onHoverOut,
-    delayLongPress: _delayLongPress,
+    delayLongPress,
     unstable_pressDelay: _pressDelay,
     pressRetentionOffset: _pressRetentionOffset,
     android_ripple: _ripple,
@@ -138,6 +139,29 @@ export function PressableBase(props: PressableBaseProps) {
       onPress?.(event);
     },
     { isActive: focus.receivesInput && !isDisabled },
+  );
+
+  // A click: pressed while the button is held, pressed for real if released over it.
+  usePointerTarget(
+    boxRef,
+    isDisabled
+      ? null
+      : {
+          pressIn(at) {
+            clearTimeout(timer.current);
+            setPressed(true);
+            onPressIn?.(createPressEvent('pressIn', boxRef.current, at));
+          },
+          pressOut(at, activate) {
+            setPressed(Boolean(testOnly_pressed));
+            onPressOut?.(createPressEvent('pressOut', boxRef.current, at));
+            if (activate) onPress?.(createPressEvent('press', boxRef.current, at));
+          },
+          longPress: onLongPress
+            ? (at) => onLongPress(createPressEvent('longPress', boxRef.current, at))
+            : undefined,
+          longPressDelay: delayLongPress ?? undefined,
+        },
   );
 
   const focusRef = useRef(focus);
@@ -188,8 +212,9 @@ export function PressableBase(props: PressableBaseProps) {
 }
 
 /**
- * A focusable, pressable container. Tab moves focus to it; Enter or Space presses it.
- * `style` and `children` can be functions of `{pressed, focused, hovered}`.
+ * A focusable, pressable container. Tab moves focus to it; Enter or Space presses it, and so
+ * does a click when the app renders with `mouse: true`. `style` and `children` can be functions
+ * of `{pressed, focused, hovered}`.
  */
 export function Pressable(props: PressableProps) {
   return <PressableBase {...props} />;

@@ -12,15 +12,15 @@ Units: 1 = one terminal cell (one column horizontally, one row vertically), unle
 | Name | Status | Notes |
 | --- | --- | --- |
 | View | Supported | Ink `<Box>` with React Native defaults (column, flexShrink 0), onLayout, measure |
-| Text | Supported | Nesting and inheritance, numberOfLines/ellipsizeMode, textAlign, textTransform, onPress |
-| TextInput | Supported | Controlled/uncontrolled, cursor editing, paste, multiline, secureTextEntry, maxLength, submitBehavior |
-| Pressable | Supported | Enter/Space press, `{pressed, focused}` state, autoFocus; no long press |
+| Text | Supported | Nesting and inheritance, numberOfLines/ellipsizeMode, textAlign, textTransform, onPress (clicks too, unless nested) |
+| TextInput | Supported | Controlled/uncontrolled, cursor editing, paste, multiline, secureTextEntry, maxLength, submitBehavior, click to focus and place the cursor |
+| Pressable | Supported | Enter/Space or a click presses, long press with the mouse, `{pressed, focused}` state, autoFocus |
 | TouchableOpacity / TouchableHighlight | Supported | Dim / underlay feedback while pressed |
-| TouchableWithoutFeedback / TouchableNativeFeedback | Supported | Focusable wrapper without an extra View |
+| TouchableWithoutFeedback / TouchableNativeFeedback | Supported | Focusable wrapper without an extra View; keyboard only (no View to click) |
 | Button | Supported | `[ Title ]`, inverse when focused |
 | Switch | Supported | `[● ]` / `[ ●]`, Space/Enter toggles |
 | ActivityIndicator | Supported | Braille (small) or bar (large) spinner |
-| ScrollView | Supported | Keyboard scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner |
+| ScrollView | Supported | Keyboard and mouse-wheel scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner |
 | FlatList / SectionList / VirtualizedList / VirtualizedSectionList | Partial | Windowed (windowSize) when getItemLayout is given, else every item renders; paging keeps focus on the visible page |
 | Modal | Supported | Opaque or transparent, focus scope, Esc → onRequestClose; content keeps its ancestors' context |
 | Image / ImageBackground | Partial | PNG/JPEG drawn with half blocks (optional `pngjs` / `jpeg-js`); no require() assets |

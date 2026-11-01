@@ -15,23 +15,23 @@ const COMPONENTS: Array<[string, Status, string]> = [
   [
     'Text',
     'supported',
-    'Nesting and inheritance, numberOfLines/ellipsizeMode, textAlign, textTransform, onPress',
+    'Nesting and inheritance, numberOfLines/ellipsizeMode, textAlign, textTransform, onPress (clicks too, unless nested)',
   ],
   [
     'TextInput',
     'supported',
-    'Controlled/uncontrolled, cursor editing, paste, multiline, secureTextEntry, maxLength, submitBehavior',
+    'Controlled/uncontrolled, cursor editing, paste, multiline, secureTextEntry, maxLength, submitBehavior, click to focus and place the cursor',
   ],
   [
     'Pressable',
     'supported',
-    'Enter/Space press, `{pressed, focused}` state, autoFocus; no long press',
+    'Enter/Space or a click presses, long press with the mouse, `{pressed, focused}` state, autoFocus',
   ],
   ['TouchableOpacity / TouchableHighlight', 'supported', 'Dim / underlay feedback while pressed'],
   [
     'TouchableWithoutFeedback / TouchableNativeFeedback',
     'supported',
-    'Focusable wrapper without an extra View',
+    'Focusable wrapper without an extra View; keyboard only (no View to click)',
   ],
   ['Button', 'supported', '`[ Title ]`, inverse when focused'],
   ['Switch', 'supported', '`[● ]` / `[ ●]`, Space/Enter toggles'],
@@ -39,7 +39,7 @@ const COMPONENTS: Array<[string, Status, string]> = [
   [
     'ScrollView',
     'supported',
-    'Keyboard scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner',
+    'Keyboard and mouse-wheel scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner',
   ],
   [
     'FlatList / SectionList / VirtualizedList / VirtualizedSectionList',

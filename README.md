@@ -97,6 +97,16 @@ function Todo() {
 | ←/→                                              | Scroll a focused horizontal ScrollView (a page at a time with `pagingEnabled`)  |
 | Ctrl+C                                           | Exit                                                                            |
 
+### Mouse
+
+Render with `mouse: true` (`render(<App />, { mouse: true, alternateScreen: true })`, or the same in `AppRegistry.runApplication`'s parameters) and the mouse works as touch does on a phone:
+
+- **A click presses** the Pressable, Touchable, Button, Switch or pressable Text it lands on (the one drawn on top, else the nearest one around it): `onPressIn` as the button goes down, `onPressOut` and `onPress` as it comes up over the same component, `onLongPress` instead when held `delayLongPress` (500 ms). Press events carry `locationX`/`locationY` and `pageX`/`pageY`.
+- **A click on a TextInput** focuses it and puts the cursor on the clicked character; a click on nothing that takes clicks clears focus.
+- **The wheel** scrolls the ScrollView or list under the pointer, else the page, three cells a step (a page per burst with `pagingEnabled`); Shift+wheel or a sideways wheel scrolls horizontal ones.
+
+The terminal has to report where the app is, so it needs `alternateScreen: true` or an app as tall as the window. While the mouse is on, selecting text in the terminal needs a modifier held (Shift in most terminals, Option in macOS ones), so offer a way to turn it off. Reporting is switched off again however the app ends.
+
 ## How React Native maps to a terminal
 
 - **Units are cells.** `width: 20` is 20 columns and `height: 3` is 3 rows. Cells are about twice as tall as they are wide. Code written in dp for a phone sets a cell size instead (see [below](#sharing-code-with-a-react-native-app)).
@@ -146,7 +156,7 @@ Keyboard behavior that makes touch screens usable from a keyboard, with no app c
 
 These Ink APIs are re-exported, so you never need to import `ink` directly:
 
-- **Rendering:** `render(element, options)` and `renderToString(element, { columns })`. `render` adds the app root that powers Modal, Alert, BackHandler and Keyboard.
+- **Rendering:** `render(element, options)` and `renderToString(element, { columns })`. `render` adds the app root that powers Modal, Alert, BackHandler and Keyboard, and takes Ink's options plus `mouse` (see [Mouse](#mouse)).
 - **Units:** `setCellSize({ width, height })` and `getCellSize()` (see above).
 - **Hooks:** `useInput`, `usePaste`, `useApp`, `useFocus`, `useFocusManager`, `useStdout`, `useStdin`, `useStderr`, `useAnimation`, `useBoxMetrics`, `useWindowSize`, `useCursor`, `useIsScreenReaderEnabled`
 - **Components:** `Static` (permanent output above the UI), `Newline`, `Spacer`, `Transform`
@@ -187,7 +197,7 @@ npm run example -- shared-code        # imports from 'react-native'
 ## Limitations
 
 - **Lists are windowed only with `getItemLayout`:** a FlatList given item sizes renders `windowSize` viewports of items; otherwise, and for SectionList, every item renders.
-- **No mouse or long press:** input is keyboard only.
+- **Mouse:** opt-in, and no hover or dragging. TouchableWithoutFeedback and TouchableNativeFeedback (which add no View) and Text nested in other Text don't take clicks. Long press needs the mouse.
 - **View inside Text:** a `<View>` nested in `<Text>` renders its children inline.
 - **Esc delay:** terminals report Esc with a short delay, because it also starts escape sequences.
 - **No native-only features:** no `require()` image assets, gestures, native modules or the native animation driver.
