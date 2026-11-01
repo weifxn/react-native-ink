@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from 'ink-testing-library';
 import { FlatList, type FlatListInstance } from '../src/components/Lists/index.js';
@@ -223,5 +224,167 @@ describe('windowed FlatList (getItemLayout)', () => {
     await tick(150);
     expect(pressed).not.toHaveBeenCalledWith(1);
     expect(lastFrame()).toBe('day 0');
+  });
+});
+
+describe('windowed FlatList (measured)', () => {
+  const items = Array.from({ length: 1000 }, (_, index) => index);
+  // Every third item is two rows tall, so the estimate is wrong until they're measured.
+  const Row = ({ item }: { item: number }) => (
+    <Text>{item % 3 === 0 ? `item ${item}\n(tall)` : `item ${item}`}</Text>
+  );
+  /** The row (0-based) of the list where `item` starts, by the heights above. */
+  const rowOf = (item: number) => item + Math.ceil(item / 3);
+
+  it('renders a window of a long list rather than every item', async () => {
+    const rendered = new Set<number>();
+    const { lastFrame } = renderInteractive(
+      <FlatList
+        style={{ height: 5 }}
+        showsVerticalScrollIndicator={false}
+        data={items}
+        keyExtractor={String}
+        windowSize={3}
+        renderItem={({ item }) => {
+          rendered.add(item);
+          return <Row item={item} />;
+        }}
+      />,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('item 0'));
+    await tick(200);
+    expect(rendered.size).toBeLessThan(30);
+  });
+
+  it('reaches the end and the start, with End/Home and scrollToEnd', async () => {
+    // The last item is a tall one: its two rows end the list.
+    const handle: { current: FlatListInstance<number> | null } = { current: null };
+    const { stdin, lastFrame } = renderInteractive(
+      <FlatList
+        ref={handle}
+        style={{ height: 5 }}
+        showsVerticalScrollIndicator={false}
+        data={items}
+        keyExtractor={String}
+        windowSize={3}
+        renderItem={({ item }) => <Row item={item} />}
+      />,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('item 0'));
+    // The rows it lands among are measured as they render; the end stays in view.
+    await press(stdin, keys.end);
+    await waitFor(() => expect(lastFrame()?.split('\n').slice(-2)).toEqual(['item 999', '(tall)']));
+    await tick(150);
+    expect(lastFrame()?.split('\n').slice(-2)).toEqual(['item 999', '(tall)']);
+    await press(stdin, keys.home);
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('item 0'));
+    handle.current?.scrollToEnd();
+    await waitFor(() => expect(lastFrame()?.split('\n').slice(-2)).toEqual(['item 999', '(tall)']));
+  });
+
+  it('scrolls to an index it has not rendered or measured', async () => {
+    const handle: { current: FlatListInstance<number> | null } = { current: null };
+    const { lastFrame } = renderInteractive(
+      <FlatList
+        ref={handle}
+        style={{ height: 5 }}
+        showsVerticalScrollIndicator={false}
+        data={items}
+        keyExtractor={String}
+        windowSize={3}
+        renderItem={({ item }) => <Row item={item} />}
+      />,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('item 0'));
+    handle.current?.scrollToIndex({ index: 500 });
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('item 500'));
+    await tick(150);
+    expect(lastFrame()?.split('\n')[0]).toBe('item 500');
+  });
+
+  it('pages through rows of different heights without skipping any', async () => {
+    const { stdin, lastFrame } = renderInteractive(
+      <FlatList
+        style={{ height: 5 }}
+        showsVerticalScrollIndicator={false}
+        data={items}
+        keyExtractor={String}
+        windowSize={3}
+        renderItem={({ item }) => <Row item={item} />}
+      />,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('item 0'));
+    // Page by page, as far as item 60: each page starts five rows on.
+    for (let page = 1; page <= 16; page++) {
+      await press(stdin, keys.pageDown);
+      const top = page * 5;
+      const item = items.find((candidate) => rowOf(candidate + 1) > top)!;
+      const expected = rowOf(item) === top ? `item ${item}` : '(tall)';
+      await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe(expected));
+    }
+  });
+
+  it('renders every item of a list with no height of its own, as it grows', async () => {
+    const rendered = new Set<number>();
+    const { stdin, lastFrame } = renderInteractive(
+      <ScrollView style={{ height: 5 }} showsVerticalScrollIndicator={false}>
+        <Text>above</Text>
+        <FlatList
+          data={items.slice(0, 60)}
+          keyExtractor={String}
+          renderItem={({ item }) => {
+            rendered.add(item);
+            return <Text>{`row ${item}`}</Text>;
+          }}
+        />
+      </ScrollView>,
+    );
+    await waitFor(() => expect(rendered.size).toBe(60));
+    await press(stdin, keys.end);
+    await waitFor(() => expect(lastFrame()?.split('\n').at(-1)).toBe('row 59'));
+  });
+
+  it('renders the rows a list shows after it grows, without a scroll', async () => {
+    const grow: { current: (() => void) | null } = { current: null };
+    function Growing() {
+      const [height, setHeight] = useState(3);
+      grow.current = () => setHeight(30);
+      return (
+        <FlatList
+          style={{ height }}
+          showsVerticalScrollIndicator={false}
+          data={items}
+          keyExtractor={String}
+          initialNumToRender={3}
+          windowSize={1}
+          renderItem={({ item }) => <Text>{`row ${item}`}</Text>}
+        />
+      );
+    }
+    const { lastFrame } = renderInteractive(<Growing />);
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('row 0'));
+    await tick(100);
+    grow.current?.();
+    await waitFor(() => expect(lastFrame()?.split('\n').at(-1)).toBe('row 29'));
+  });
+
+  it('counts the header and padding before the items', async () => {
+    const handle: { current: FlatListInstance<number> | null } = { current: null };
+    const { lastFrame } = renderInteractive(
+      <FlatList
+        ref={handle}
+        style={{ height: 4 }}
+        contentContainerStyle={{ paddingTop: 2 }}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={<Text>{'header\nheader'}</Text>}
+        data={items}
+        keyExtractor={String}
+        windowSize={3}
+        renderItem={({ item }) => <Text>{`row ${item}`}</Text>}
+      />,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[2]).toBe('header'));
+    handle.current?.scrollToIndex({ index: 300 });
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('row 300'));
   });
 });

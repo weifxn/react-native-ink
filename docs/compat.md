@@ -21,7 +21,7 @@ Units: 1 = one terminal cell (one column horizontally, one row vertically), unle
 | Switch | Supported | `[● ]` / `[ ●]`, Space/Enter toggles |
 | ActivityIndicator | Supported | Braille (small) or bar (large) spinner |
 | ScrollView | Supported | Keyboard and mouse-wheel scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner |
-| FlatList / SectionList / VirtualizedList / VirtualizedSectionList | Partial | Windowed (windowSize) when getItemLayout is given, else every item renders; paging keeps focus on the visible page |
+| FlatList / SectionList / VirtualizedList / VirtualizedSectionList | Partial | FlatList renders a window (windowSize, default 5) sized by getItemLayout or by measuring; inverted lists and SectionList render every item; paging keeps focus on the visible page |
 | Modal | Supported | Opaque or transparent, focus scope, Esc → onRequestClose; content keeps its ancestors' context |
 | Image / ImageBackground | Partial | PNG/JPEG drawn with half blocks (optional `pngjs` / `jpeg-js`); no require() assets |
 | SafeAreaView / KeyboardAvoidingView | Supported | Plain Views |

@@ -201,7 +201,8 @@ describe('rendering with a cell size', () => {
     await waitFor(() => expect(sizes.at(-1)).toBe(96));
     handle.current?.scrollTo({ y: 48 });
     await waitFor(() => expect(lastFrame()).toBe(lines('row 3', 'row 4')));
-    expect(offsets.at(-1)).toBe(48);
+    // onScroll comes in an effect after the frame that shows the new offset.
+    await waitFor(() => expect(offsets.at(-1)).toBe(48));
   });
 
   it('starts at a contentOffset given in layout units', async () => {

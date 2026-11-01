@@ -115,6 +115,8 @@ const YOGA_OVERFLOW_SCROLL = 2;
 const WHEEL_STEP = 3;
 /** Wheel steps closer together than this are one burst, which turns one page when paging. */
 const PAGE_WHEEL_GAP_MS = 200;
+/** How long End keeps the view at the end while what's there settles. */
+const PIN_TO_END_MS = 400;
 
 interface IndicatorProps {
   horizontal: boolean;
@@ -271,6 +273,13 @@ export function ScrollView(props: ScrollViewProps) {
 
   // Set by a scroll from the keyboard, so the scroll events it causes also report it as ended.
   const userScroll = useRef(false);
+  // End (or scrollToEnd) keeps the view at the end for a moment, while what was just rendered
+  // there settles (a list measures the rows it renders) and moves the end. Only for a moment, so
+  // a list that loads more as its end is reached doesn't drag the view on through every page.
+  const pinnedUntil = useRef(0);
+  const pinToEnd = (on: boolean) => {
+    pinnedUntil.current = on ? Date.now() + PIN_TO_END_MS : 0;
+  };
   const paging = Boolean(pagingEnabled);
 
   /** A step from the keyboard: a cell (a page when paging), a page, or to either end. */
@@ -291,6 +300,7 @@ export function ScrollView(props: ScrollViewProps) {
         home: 0,
         end: limit,
       };
+      pinToEnd(action === 'end');
       const target = clamp(targets[action], limit);
       if (target === at) return;
       userScroll.current = true;
@@ -346,6 +356,7 @@ export function ScrollView(props: ScrollViewProps) {
       }
       const target = clamp(at + direction * WHEEL_STEP, limit);
       userScroll.current = true;
+      pinToEnd(false);
       if (horizontal) scrollTo(target);
       else scrollTo(undefined, target);
       return true;
@@ -401,6 +412,19 @@ export function ScrollView(props: ScrollViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.x, current.y, measured]);
   useEffect(() => {
+    if (Date.now() > pinnedUntil.current || !measured) return;
+    if (horizontal) scrollTo(live.current.maxX);
+    else scrollTo(undefined, live.current.maxY);
+  }, [
+    content.width,
+    content.height,
+    viewport.width,
+    viewport.height,
+    measured,
+    horizontal,
+    scrollTo,
+  ]);
+  useEffect(() => {
     if (content.hasMeasured) {
       callbacks.current.onContentSizeChange?.(
         fromCells(content.width, cell, 'x'),
@@ -434,7 +458,10 @@ export function ScrollView(props: ScrollViewProps) {
         } else if (rect.y < position.y) next.y = rect.y;
         else if (rect.y + rect.height > position.y + height) next.y = rect.y + rect.height - height;
         next = { x: clamp(next.x, limitX), y: clamp(next.y, limitY) };
-        if (next.x !== position.x || next.y !== position.y) scrollTo(next.x, next.y);
+        if (next.x !== position.x || next.y !== position.y) {
+          pinToEnd(false);
+          scrollTo(next.x, next.y);
+        }
         // Then the ScrollView around this one, for the part of this viewport the target now fills.
         outerScroll?.scrollIntoView(viewportNode, {
           x: rect.x - next.x,
@@ -457,10 +484,12 @@ export function ScrollView(props: ScrollViewProps) {
     const instance = Object.assign(attachNativeMethods(node), {
       // Deprecated React Native signature: scrollTo(y, x, animated).
       scrollTo(options?: { x?: number; y?: number } | number, x?: number) {
+        pinToEnd(false);
         if (typeof options === 'number') scrollTo(cellX(x), cellY(options));
         else scrollTo(cellX(options?.x), cellY(options?.y));
       },
       scrollToEnd() {
+        pinToEnd(true);
         if (horizontal) scrollTo(live.current.maxX);
         else scrollTo(undefined, live.current.maxY);
       },

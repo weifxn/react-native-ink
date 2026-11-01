@@ -196,7 +196,7 @@ npm run example -- shared-code        # imports from 'react-native'
 
 ## Limitations
 
-- **Lists are windowed only with `getItemLayout`:** a FlatList given item sizes renders `windowSize` viewports of items; otherwise, and for SectionList, every item renders.
+- **Lists render a window:** a FlatList renders `windowSize` viewports of rows (5 by default, where React Native's is 21: a terminal renders each scroll step before the next, and paints every row it holds on every frame), sized by `getItemLayout` or measured as they render. Inverted FlatLists and SectionList render every item.
 - **Mouse:** opt-in, and no hover or dragging. TouchableWithoutFeedback and TouchableNativeFeedback (which add no View) and Text nested in other Text don't take clicks. Long press needs the mouse.
 - **View inside Text:** a `<View>` nested in `<Text>` renders its children inline.
 - **Esc delay:** terminals report Esc with a short delay, because it also starts escape sequences.

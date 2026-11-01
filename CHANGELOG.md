@@ -14,7 +14,7 @@ First release of the rebuild on Ink 8. The 2019 prototype is still in git histor
 - `Pressable`, `TouchableOpacity`, `TouchableHighlight`, `TouchableWithoutFeedback`, `TouchableNativeFeedback`, `Button` and pressable `Text`.
 - `Switch`, `ActivityIndicator`, `ProgressBarAndroid`.
 - `ScrollView`: keyboard scrolling, scroll indicator, scroll-into-view for focused children, `scrollTo` / `scrollToEnd`, `RefreshControl`.
-- `FlatList`, `SectionList`, `VirtualizedList`, `VirtualizedSectionList` (not virtualized).
+- `FlatList`, `SectionList`, `VirtualizedList`, `VirtualizedSectionList`.
 - `Modal`: opaque and transparent, scoped focus, Esc calls `onRequestClose`.
 - `Image` and `ImageBackground`: PNG and JPEG drawn with half blocks.
 - `SafeAreaView`, `KeyboardAvoidingView`, `StatusBar`, `RefreshControl`, `DrawerLayoutAndroid`, and stubs for the experimental virtual collection components.
@@ -41,7 +41,7 @@ First release of the rebuild on Ink 8. The 2019 prototype is still in git histor
 - Wrapped text starts each row at a word: Ink's wrapping put the space a row broke at on the next row whenever the row before was exactly full. A paragraph's own indentation stays.
 - The mouse, opt-in with `mouse: true`: a click presses (long press too) or focuses a TextInput with the cursor where it landed, and the wheel scrolls the ScrollView under the pointer.
 - Modal content keeps the React context of the Modal's ancestors (it renders through a portal), and with `AppRegistry` covers the wrapper component's chrome as well.
-- FlatList renders only `windowSize` viewports of items when given `getItemLayout` (`initialNumToRender` before it has measured), scrolls to unrendered indexes, and with `pagingEnabled` keeps focus on the visible page.
+- FlatList renders only `windowSize` viewports of rows (5 by default), sized by `getItemLayout` or measured as they render, so a long list is quick to open and to scroll; it scrolls to unrendered indexes, and with `pagingEnabled` keeps focus on the visible page. End and `scrollToEnd` keep the end in view while the rows there are measured.
 
 ### Fixes
 

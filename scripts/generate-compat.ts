@@ -44,7 +44,7 @@ const COMPONENTS: Array<[string, Status, string]> = [
   [
     'FlatList / SectionList / VirtualizedList / VirtualizedSectionList',
     'partial',
-    'Windowed (windowSize) when getItemLayout is given, else every item renders; paging keeps focus on the visible page',
+    'FlatList renders a window (windowSize, default 5) sized by getItemLayout or by measuring; inverted lists and SectionList render every item; paging keeps focus on the visible page',
   ],
   [
     'Modal',

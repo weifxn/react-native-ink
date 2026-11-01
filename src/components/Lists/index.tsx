@@ -1,8 +1,10 @@
 import {
   isValidElement,
+  memo,
   useCallback,
   useContext,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -12,7 +14,7 @@ import {
   type Ref,
 } from 'react';
 import type { DOMElement } from 'ink';
-import type { NativeSyntheticEvent } from '../../internal/events.js';
+import type { LayoutChangeEvent, NativeSyntheticEvent } from '../../internal/events.js';
 import type { StyleProp, ViewStyle } from '../../style/types.js';
 import {
   ScrollView,
@@ -77,21 +79,20 @@ interface CommonListProps extends Omit<ScrollViewProps, 'ref' | 'children'> {
   onEndReachedThreshold?: number | null;
   refreshing?: boolean | null;
   onRefresh?: (() => void) | null;
-  /** With `getItemLayout`: how many items render before the list has measured itself (default 10). */
+  /** How many items render before the list has measured itself (default 10). */
   initialNumToRender?: number;
   /** @remarks Ignored: a windowed list renders its whole window at once. */
   maxToRenderPerBatch?: number;
   /**
-   * With `getItemLayout`: how many viewports of items render, centered on the visible one
-   * (default 21, as in React Native). Without it every item renders.
+   * How many viewports of items render, centered on the visible one (default 5; React Native's is
+   * 21, for touch flings, but a terminal renders each step before the next).
    */
   windowSize?: number;
   /** @remarks Ignored (items outside the window aren't rendered at all). */
   removeClippedSubviews?: boolean;
   /**
-   * Item sizes known up front. A FlatList given this renders only the items within `windowSize`
-   * viewports (spacers stand in for the rest), and with `pagingEnabled` only the visible page's
-   * items take focus.
+   * Item sizes known up front, so nothing needs measuring (a FlatList measures its items as they
+   * render otherwise), and with `pagingEnabled` only the visible page's items take focus.
    */
   getItemLayout?: (data: any, index: number) => { length: number; offset: number; index: number };
   /** @remarks Ignored. */
@@ -114,6 +115,33 @@ export interface FlatListProps<ItemT> extends CommonListProps {
 }
 
 const separators: Separators = { highlight() {}, unhighlight() {}, updateProps() {} };
+
+/** How long scrollToIndex keeps the row in place while the rows around it are measured. */
+const SETTLE_MS = 1000;
+
+/**
+ * Viewports of rows a list renders: the one in view and two either side. React Native's 21 is for
+ * touch flings that outrun rendering; a terminal scrolls a row, a page or a jump at a time, each
+ * rendered before the next, and Ink lays out and paints every row it holds on every frame.
+ */
+const DEFAULT_WINDOW_SIZE = 5;
+
+/**
+ * One item, re-rendered only when its item, index, `renderItem` or `extraData` changes, as React
+ * Native's cells are: a window that moves on re-renders only the items coming into it.
+ */
+const Cell = memo(function Cell({
+  item,
+  index,
+  render,
+}: {
+  item: unknown;
+  index: number;
+  render: ListRenderItem<any> | null | undefined;
+  extraData: unknown;
+}) {
+  return render ? render({ item, index, separators }) : null;
+});
 
 function renderSlot(slot: ComponentOrElement): ReactNode {
   if (!slot) return null;
@@ -140,6 +168,8 @@ interface Row {
 
 interface ListApi {
   scrollToId(id: string, params?: ScrollToParams): void;
+  /** Whether the row with this id is rendered (a windowed list leaves most out). */
+  hasId(id: string): boolean;
   scrollToOffset(offset: number): void;
   /** The viewport's length along the scroll axis, in layout units (0 before layout). */
   visibleLength(): number;
@@ -156,6 +186,8 @@ interface ListBaseProps extends CommonListProps {
   listRef?: Ref<any>;
   /** The visible span along the scroll axis, in layout units, whenever it changes. */
   onViewport?: (offset: number, length: number) => void;
+  /** Each rendered row's start and length along the scroll axis (layout units) as it lays out. */
+  onRowLayout?: (key: string, start: number, length: number) => void;
 }
 
 /** Shared list implementation: rows inside a ScrollView with addressable cells. */
@@ -168,6 +200,7 @@ function ListBase(props: ListBaseProps) {
     methods,
     listRef,
     onViewport,
+    onRowLayout,
     ListHeaderComponent,
     ListHeaderComponentStyle,
     ListFooterComponent,
@@ -182,6 +215,7 @@ function ListBase(props: ListBaseProps) {
     onRefresh,
     onScroll,
     onContentSizeChange,
+    onLayout,
     horizontal,
     initialNumToRender: _a,
     maxToRenderPerBatch: _b,
@@ -232,6 +266,7 @@ function ListBase(props: ListBaseProps) {
           ) - (params.viewOffset ?? 0);
         scroll.scrollTo(horizontal ? { x: position } : { y: position });
       },
+      hasId: (id) => cells.current.has(id),
       scrollToOffset(offset) {
         scrollRef.current?.scrollTo(horizontal ? { x: offset } : { y: offset });
       },
@@ -253,11 +288,24 @@ function ListBase(props: ListBaseProps) {
     return scroll ? Object.assign(scroll, methods(api)) : null;
   }, [api, methods]);
 
+  // The viewport changes with scrolling, and with the list's own size: a list with no height of
+  // its own (inside a page that scrolls) grows as it renders more, without ever scrolling.
+  const lastOffset = useRef(0);
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      onLayout?.(event);
+      const { width, height } = event.nativeEvent.layout;
+      onViewport?.(lastOffset.current, horizontal ? width : height);
+    },
+    [onLayout, onViewport, horizontal],
+  );
+
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       onScroll?.(event);
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
       const offset = horizontal ? contentOffset.x : contentOffset.y;
+      lastOffset.current = offset;
       const content = horizontal ? contentSize.width : contentSize.height;
       const visible = horizontal ? layoutMeasurement.width : layoutMeasurement.height;
       // The first event comes before the initial scroll: window around where it's going.
@@ -317,6 +365,14 @@ function ListBase(props: ListBaseProps) {
             if (node) cells.current.set(row.id, node);
             else cells.current.delete(row.id);
           }}
+          onLayout={
+            onRowLayout
+              ? (event) => {
+                  const { x, y, width, height } = event.nativeEvent.layout;
+                  onRowLayout(row.key, horizontal ? x : y, horizontal ? width : height);
+                }
+              : undefined
+          }
         >
           {row.node}
         </View>
@@ -328,6 +384,7 @@ function ListBase(props: ListBaseProps) {
       {...scrollProps}
       horizontal={horizontal}
       ref={scrollRef}
+      onLayout={handleLayout}
       onScroll={handleScroll}
       onContentSizeChange={handleContentSizeChange}
       refreshControl={
@@ -342,7 +399,12 @@ function ListBase(props: ListBaseProps) {
   );
 }
 
-/** A scrollable list of items (not virtualized). */
+/**
+ * A scrollable list of items. Only a window of rows renders, `windowSize` viewports around the
+ * visible one, with spacers standing in for the rest, as React Native's VirtualizedList does: the
+ * rows are sized by `getItemLayout` when it's given, else measured as they render (the ones not
+ * seen yet are taken to be the average size). An inverted list renders every item.
+ */
 export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
   const {
     data,
@@ -360,15 +422,30 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
   const columns = Math.max(1, Math.floor(numColumns));
   const {
     getItemLayout,
-    windowSize = 21,
+    windowSize = DEFAULT_WINDOW_SIZE,
     initialNumToRender = 10,
     horizontal,
     pagingEnabled,
+    inverted,
   } = rest;
 
-  // With item sizes known up front, render only a window of items around the visible span, as
-  // React Native does; spacers keep the content as long as the whole list.
-  const windowed = typeof getItemLayout === 'function' && columns === 1 && items.length > 0;
+  // Rows are groups of `columns` items (one item each, mostly).
+  const rowCount = Math.ceil(items.length / columns);
+  const keys = items.map((item, index) => extract(item, index));
+  const rowKeys =
+    columns === 1
+      ? keys
+      : Array.from({ length: rowCount }, (_, row) =>
+          keys.slice(row * columns, (row + 1) * columns).join('|'),
+        );
+  const rowKey = (row: number) => rowKeys[row]!;
+  const separatorAfter = (row: number) => Boolean(ItemSeparatorComponent) && row < rowCount - 1;
+
+  // How the window is found: from the sizes getItemLayout gives, or from measuring.
+  const declared = typeof getItemLayout === 'function' && columns === 1 && items.length > 0;
+  const measuring = !declared && !inverted && items.length > 0;
+  const windowed = declared || measuring;
+
   const [viewport, setViewport] = useState<{ offset: number; length: number } | null>(null);
   const onViewport = useCallback((offset: number, length: number) => {
     setViewport((previous) =>
@@ -377,28 +454,88 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
         : { offset, length },
     );
   }, []);
-  const layoutOf = (index: number) => getItemLayout!(items, index);
+
+  // Measured sizes along the scroll axis (layout units), by row key: kept when a row leaves the
+  // window, so the spacer that takes its place is exactly as long. And where the items start in
+  // the content (after its padding and the header), from the spacer before them.
+  const sizes = useRef(new Map<string, number>());
+  const itemsStart = useRef(0);
+  const [measures, setMeasures] = useState(0);
+  const onRowLayout = useCallback((key: string, start: number, length: number) => {
+    if (key === '__before') {
+      if (itemsStart.current === start) return;
+      itemsStart.current = start;
+    } else {
+      if (sizes.current.get(key) === length) return;
+      sizes.current.set(key, length);
+    }
+    setMeasures((count) => count + 1);
+  }, []);
+
+  // Each row's offset from the first item, with the separator after it.
+  let offsets: number[] = [];
+  if (measuring) {
+    const unit = fromCells(1, getCellSize(), horizontal ? 'x' : 'y');
+    const seen = { rows: 0, rowTotal: 0, separators: 0, separatorTotal: 0 };
+    for (let row = 0; row < rowCount; row++) {
+      const size = sizes.current.get(rowKey(row));
+      if (size !== undefined) {
+        seen.rows += 1;
+        seen.rowTotal += size;
+      }
+      const separator = separatorAfter(row)
+        ? sizes.current.get(`${rowKey(row)}:separator`)
+        : undefined;
+      if (separator !== undefined) {
+        seen.separators += 1;
+        seen.separatorTotal += separator;
+      }
+    }
+    // Whole cells, as everything is laid out in.
+    const average = (total: number, count: number) => Math.round(total / count / unit) * unit;
+    const rowEstimate = seen.rows ? Math.max(unit, average(seen.rowTotal, seen.rows)) : unit;
+    const separatorEstimate = seen.separators ? average(seen.separatorTotal, seen.separators) : 0;
+    offsets = Array.from({ length: rowCount + 1 }, () => 0);
+    for (let row = 0; row < rowCount; row++) {
+      const key = rowKey(row);
+      const separator = separatorAfter(row)
+        ? (sizes.current.get(`${key}:separator`) ?? separatorEstimate)
+        : 0;
+      offsets[row + 1] = offsets[row]! + (sizes.current.get(key) ?? rowEstimate) + separator;
+    }
+  }
+  const rowLayout = (row: number) =>
+    declared
+      ? getItemLayout!(items, row)
+      : { offset: offsets[row]!, length: offsets[row + 1]! - offsets[row]! };
+
   let first = 0;
-  let last = items.length - 1;
+  let last = rowCount - 1;
   if (windowed) {
     if (viewport && viewport.length > 0) {
+      // getItemLayout's offsets count from the content's start, as in React Native; measured
+      // ones from the first item.
+      const at = viewport.offset - (measuring ? itemsStart.current : 0);
       const extra = (Math.max(1, windowSize) - 1) / 2;
-      const from = viewport.offset - extra * viewport.length;
-      const to = viewport.offset + viewport.length + extra * viewport.length;
-      first = firstIndexEndingAfter(items.length, layoutOf, from);
-      last = Math.max(first, firstIndexEndingAfter(items.length, layoutOf, to) - 1);
-      // `to` falls inside the item it lands on, which is partly visible: keep it.
-      if (last + 1 < items.length && layoutOf(last + 1).offset < to) last += 1;
+      const from = at - extra * viewport.length;
+      const to = at + viewport.length + extra * viewport.length;
+      first = Math.min(firstIndexEndingAfter(rowCount, rowLayout, from), rowCount - 1);
+      last = Math.max(first, firstIndexEndingAfter(rowCount, rowLayout, to) - 1);
+      // `to` falls inside the row it lands on, which is partly visible: keep it.
+      if (last + 1 < rowCount && rowLayout(last + 1).offset < to) last += 1;
     } else {
-      first = Math.min(Math.max(0, initialScrollIndex ?? 0), items.length - 1);
-      last = Math.min(items.length - 1, first + Math.max(1, initialNumToRender) - 1);
+      first = Math.min(Math.floor(Math.max(0, initialScrollIndex ?? 0) / columns), rowCount - 1);
+      last = Math.min(
+        rowCount - 1,
+        first + Math.ceil(Math.max(1, initialNumToRender) / columns) - 1,
+      );
     }
   }
   // While paging, only the page in view takes focus (Tab doesn't wander into the next page).
   const inScope = useContext(FocusScopeContext);
-  const onPage = (index: number) => {
-    if (!windowed || !pagingEnabled || !viewport) return true;
-    const { offset, length } = layoutOf(index);
+  const onPage = (row: number) => {
+    if (!declared || !pagingEnabled || !viewport) return true;
+    const { offset, length } = rowLayout(row);
     return offset < viewport.offset + viewport.length && offset + length > viewport.offset;
   };
   const spacer = (key: string, length: number): Row => ({
@@ -408,27 +545,34 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
 
   const rows: Row[] = [];
   const indexToId = (index: number) => `row:${Math.floor(index / columns)}`;
-  if (windowed && first > 0) {
-    rows.push(spacer('__before', layoutOf(first).offset - layoutOf(0).offset));
+  if (declared && first > 0) {
+    rows.push(spacer('__before', rowLayout(first).offset - rowLayout(0).offset));
   }
-  for (
-    let start = windowed ? first : 0;
-    start <= (windowed ? last : items.length - 1);
-    start += columns
-  ) {
+  // Always there when measuring: where it lays out is where the items start.
+  if (measuring) rows.push(spacer('__before', offsets[first]!));
+  for (let row = windowed ? first : 0; row <= (windowed ? last : rowCount - 1); row++) {
+    const start = row * columns;
     const group = items.slice(start, start + columns);
     const cells = group.map((item, offset) => {
       const index = start + offset;
-      const element = renderItem ? renderItem({ item, index, separators }) : null;
+      const element = (
+        <Cell
+          key={keys[index]}
+          item={item}
+          index={index}
+          render={renderItem}
+          extraData={rest.extraData}
+        />
+      );
       return columns > 1 ? (
-        <View key={extract(item, index)} style={{ flex: 1 }}>
+        <View key={keys[index]} style={{ flex: 1 }}>
           {element}
         </View>
       ) : (
         element
       );
     });
-    const key = group.map((item, offset) => extract(item, start + offset)).join('|');
+    const key = rowKey(row);
     const node =
       columns > 1 ? (
         <View style={[{ flexDirection: 'row' }, columnWrapperStyle]}>{cells}</View>
@@ -439,54 +583,111 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
       key,
       id: indexToId(start),
       node:
-        windowed && pagingEnabled ? (
-          <FocusScopeContext.Provider value={inScope && onPage(start)}>
+        declared && pagingEnabled ? (
+          <FocusScopeContext.Provider value={inScope && onPage(row)}>
             {node}
           </FocusScopeContext.Provider>
         ) : (
           node
         ),
     });
-    if (ItemSeparatorComponent && start + columns < items.length) {
+    if (separatorAfter(row) && ItemSeparatorComponent) {
       rows.push({
         key: `${key}:separator`,
         node: <ItemSeparatorComponent highlighted={false} leadingItem={group[group.length - 1]} />,
       });
     }
   }
-
-  if (windowed && last < items.length - 1) {
-    const end = layoutOf(items.length - 1);
-    const lastShown = layoutOf(last);
+  if (declared && last < rowCount - 1) {
+    const end = rowLayout(rowCount - 1);
+    const lastShown = rowLayout(last);
     rows.push(spacer('__after', end.offset + end.length - (lastShown.offset + lastShown.length)));
   }
+  if (measuring && last < rowCount - 1) {
+    rows.push(spacer('__after', offsets[rowCount]! - offsets[last + 1]!));
+  }
 
-  const latestLayout = useRef(getItemLayout);
-  latestLayout.current = getItemLayout;
+  // Sizes of rows no longer in the data are dropped once they pile up.
+  useLayoutEffect(() => {
+    if (sizes.current.size <= 4 * rowCount + 100) return;
+    const current = new Set<string>();
+    for (let row = 0; row < rowCount; row++) {
+      current.add(rowKey(row));
+      current.add(`${rowKey(row)}:separator`);
+    }
+    for (const key of sizes.current.keys()) if (!current.has(key)) sizes.current.delete(key);
+  });
+
+  // scrollToIndex to a row that isn't rendered goes to where it should be, then to where it is
+  // once it renders there. The rows around it are measured as they render, which can move it:
+  // it's aimed at again as their sizes arrive, while the list settles.
+  const apiRef = useRef<ListApi | null>(null);
+  const pending = useRef<{
+    id: string;
+    params: ScrollToParams;
+    until: number;
+    aimed: number;
+  } | null>(null);
+  const aimAt = (index: number, params: ScrollToParams) => {
+    pending.current = { id: indexToId(index), params, until: Date.now() + SETTLE_MS, aimed: -1 };
+  };
+  const initialAim = useRef(false);
+  if (!initialAim.current) {
+    initialAim.current = true;
+    if (measuring && initialScrollIndex != null) aimAt(initialScrollIndex, {});
+  }
+  useLayoutEffect(() => {
+    const target = pending.current;
+    const api = apiRef.current;
+    if (!target || !api) return;
+    if (Date.now() > target.until) {
+      pending.current = null;
+      return;
+    }
+    if (!api.hasId(target.id) || target.aimed === measures) return;
+    target.aimed = measures;
+    api.scrollToId(target.id, target.params);
+  });
+  const latest = useRef({ getItemLayout, measuring, offsets, items });
+  latest.current = { getItemLayout, measuring, offsets, items };
   const methods = useCallback(
-    (api: ListApi) => ({
-      scrollToIndex: ({ index, ...params }: { index: number } & ScrollToParams) => {
-        const layout = latestLayout.current;
+    (api: ListApi) => {
+      apiRef.current = api;
+      const scrollToIndex = ({ index, ...params }: { index: number } & ScrollToParams) => {
+        const { getItemLayout: layout, measuring: measured, offsets: rowOffsets } = latest.current;
+        const id = indexToId(index);
         // A windowed list may not have rendered the row; its offset is known anyway.
         if (layout && columns === 1) {
-          const { offset, length } = layout(items, index);
+          const { offset, length } = layout(latest.current.items, index);
           const visible = api.visibleLength();
           api.scrollToOffset(
             offset - (params.viewPosition ?? 0) * (visible - length) - (params.viewOffset ?? 0),
           );
-        } else api.scrollToId(indexToId(index), params);
-      },
-      scrollToItem: ({ item, ...params }: { item: ItemT } & ScrollToParams) => {
-        const index = items.indexOf(item);
-        if (index !== -1) api.scrollToId(indexToId(index), params);
-      },
-      scrollToOffset: ({ offset }: { offset: number }) => api.scrollToOffset(offset),
-      recordInteraction() {},
-      getNativeScrollRef: () => api.scrollView(),
-    }),
-    // indexToId only depends on `columns`.
+        } else if (measured) {
+          aimAt(index, params);
+          if (api.hasId(id)) api.scrollToId(id, params);
+          else {
+            const row = Math.floor(index / columns);
+            api.scrollToOffset(
+              itemsStart.current + (rowOffsets[row] ?? 0) - (params.viewOffset ?? 0),
+            );
+          }
+        } else api.scrollToId(id, params);
+      };
+      return {
+        scrollToIndex,
+        scrollToItem: ({ item, ...params }: { item: ItemT } & ScrollToParams) => {
+          const index = latest.current.items.indexOf(item);
+          if (index !== -1) scrollToIndex({ index, ...params });
+        },
+        scrollToOffset: ({ offset }: { offset: number }) => api.scrollToOffset(offset),
+        recordInteraction() {},
+        getNativeScrollRef: () => api.scrollView(),
+      };
+    },
+    // indexToId only depends on `columns`; the rest is read from `latest` when called.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, columns],
+    [columns],
   );
 
   return (
@@ -496,13 +697,14 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
       isEmpty={items.length === 0}
       initialScrollId={initialScrollIndex != null ? indexToId(initialScrollIndex) : undefined}
       initialScrollOffset={
-        windowed && initialScrollIndex != null
-          ? layoutOf(Math.min(initialScrollIndex, items.length - 1)).offset
+        declared && initialScrollIndex != null
+          ? rowLayout(Math.min(initialScrollIndex, items.length - 1)).offset
           : undefined
       }
       methods={methods}
       listRef={ref}
       onViewport={windowed ? onViewport : undefined}
+      onRowLayout={measuring ? onRowLayout : undefined}
     />
   );
 }
