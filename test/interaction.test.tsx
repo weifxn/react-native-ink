@@ -13,7 +13,7 @@ import {
   TouchableWithoutFeedback,
 } from '../src/components/Touchable/index.js';
 import { View } from '../src/components/View/index.js';
-import { keys, press, renderInteractive, renderText, tick, waitFor } from './helpers.js';
+import { keys, press, renderInteractive, renderText, settle, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -112,15 +112,18 @@ describe('Pressable', () => {
 
   it('supports autoFocus and ref.focus()', async () => {
     const onPress = vi.fn();
+    const onFocus = vi.fn();
     const { stdin } = renderInteractive(
       <View>
         <Item label="first" />
-        <Pressable autoFocus onPress={onPress}>
+        <Pressable autoFocus onPress={onPress} onFocus={onFocus}>
           <Text>auto</Text>
         </Pressable>
       </View>,
     );
-    await tick();
+    // It listens for keys from the effects that report its focus.
+    await waitFor(() => expect(onFocus).toHaveBeenCalled());
+    await settle();
     await press(stdin, keys.enter);
     await waitFor(() => expect(onPress).toHaveBeenCalledOnce());
   });

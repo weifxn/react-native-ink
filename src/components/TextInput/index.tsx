@@ -2,6 +2,7 @@ import {
   useContext,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -339,10 +340,12 @@ export function TextInput(props: TextInputProps) {
   );
   usePaste(typed, { isActive: active });
 
-  useImperativeHandle(ref, () => {
+  // The instance exists whether or not a ref asks for it: TextInput.State reports it, and React
+  // only builds a ref's handle when there is a ref.
+  useLayoutEffect(() => {
     const node = boxRef.current;
-    if (!node) return null as unknown as TextInputInstance;
-    const instance = Object.assign(
+    if (!node || instanceRef.current) return;
+    instanceRef.current = Object.assign(
       attachNativeMethods(node, {
         focus: () => focusableRef.current.focus(),
         blur: () => focusableRef.current.blur(),
@@ -358,9 +361,15 @@ export function TextInput(props: TextInputProps) {
         getNativeRef: () => instanceRef.current,
       },
     ) as TextInputInstance;
-    instanceRef.current = instance;
-    return instance;
   }, []);
+  // An input removed while focused gets no blur: it mustn't stay "the focused input".
+  useLayoutEffect(
+    () => () => {
+      if (focusedInput && focusedInput === instanceRef.current) focusedInput = null;
+    },
+    [],
+  );
+  useImperativeHandle(ref, () => instanceRef.current ?? (null as unknown as TextInputInstance), []);
 
   // Styles: text props go to the text, layout props to the surrounding box.
   const { text: textStyle, layout } = splitTextStyle(flattenStyle(style));

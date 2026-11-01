@@ -13,7 +13,7 @@ import {
   ToastAndroid,
   View,
 } from '../src/index.js';
-import { keys, press, renderInteractive, tick, waitFor } from './helpers.js';
+import { inputFocused, keys, press, renderInteractive, settle, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -59,7 +59,7 @@ describe('Modal', () => {
   it('limits focus to the top modal', async () => {
     const outside = vi.fn();
     const inside = vi.fn();
-    const { stdin } = renderInteractive(
+    const { stdin, lastFrame } = renderInteractive(
       <View>
         <Button title="outside" onPress={outside} />
         <Modal>
@@ -67,7 +67,9 @@ describe('Modal', () => {
         </Modal>
       </View>,
     );
-    await tick();
+    // The modal's content mounts a few renders after the Modal: wait for it, and its effects.
+    await waitFor(() => expect(lastFrame()).toContain('[ inside ]'));
+    await settle();
     await press(stdin, keys.tab, keys.enter, keys.tab, keys.enter);
     await waitFor(() => expect(inside).toHaveBeenCalledTimes(2));
     expect(outside).not.toHaveBeenCalled();
@@ -169,9 +171,8 @@ describe('Alert', () => {
     await waitFor(() => expect(lastFrame()).toContain('Delete file?'));
     await waitFor(() => expect(lastFrame()).toContain('This cannot be undone.'));
     await waitFor(() => expect(lastFrame()).toContain('[ Cancel ]'));
-    // The focused button subscribes to input in an effect after the frame that shows it: let
-    // that land before pressing, as a person can't press within a few milliseconds anyway.
-    await tick(100);
+    // The focused button subscribes to input in an effect after the frame that shows it.
+    await settle();
     await press(stdin, keys.enter);
     await tick();
     await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
@@ -186,7 +187,9 @@ describe('Alert', () => {
       { text: 'No', style: 'cancel', onPress: onCancel },
       { text: 'Yes' },
     ]);
-    await tick(100);
+    // Esc goes to the open dialog once it has subscribed (in an effect after it shows).
+    await waitFor(() => expect(lastFrame()).toContain('Quit?'));
+    await settle();
     await press(stdin, keys.escape);
     await tick();
     await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
@@ -198,7 +201,7 @@ describe('Alert', () => {
     const { stdin } = renderInteractive(<Text>app</Text>);
     await tick();
     Alert.prompt('Your name', undefined, onSubmit);
-    await tick(100);
+    await inputFocused();
     await press(stdin, 'Ada', keys.enter);
     await tick();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('Ada'));
@@ -214,8 +217,8 @@ describe('ActionSheetIOS', () => {
       { options: ['Cancel', 'Copy', 'Delete'], cancelButtonIndex: 0 },
       callback,
     );
-    await tick(100);
     await waitFor(() => expect(lastFrame()).toContain('[ Copy ]'));
+    await settle();
     await press(stdin, keys.tab, keys.enter);
     await tick();
     await waitFor(() => expect(callback).toHaveBeenCalledWith(1));

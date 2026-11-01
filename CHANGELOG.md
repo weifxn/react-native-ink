@@ -36,6 +36,7 @@ First release of the rebuild on Ink 8. The 2019 prototype is still in git histor
 - Tab follows the tree, not mount order: a focusable that mounts late (after its data loaded) takes its place, and keeps focus while the order is restored.
 - A focused item is scrolled into view by every enclosing ScrollView, not only the nearest.
 - `pagingEnabled`: ←/→ (↑/↓ vertically) move a page and land on page boundaries; keyboard scrolls fire `onScrollEndDrag` and `onMomentumScrollEnd`.
+- `TextInput.State.currentlyFocusedInput()` reports a focused input that has no ref, and lets go of one removed while focused, so code that checks whether someone is typing gets the right answer.
 - `numberOfLines` above 1 ends the last line with an ellipsis when the text runs on, as React Native does.
 - Translucent colors (`rgba()`, `#rrggbbaa`) are mixed with the background behind them instead of being drawn opaque, so a faint border or highlight looks as it does on a phone.
 - Wrapped text starts each row at a word: Ink's wrapping put the space a row broke at on the next row whenever the row before was exactly full. A paragraph's own indentation stays.
