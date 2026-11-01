@@ -1,6 +1,8 @@
 import {
+  useContext,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -20,13 +22,16 @@ import stringWidth from 'string-width';
 import { resolveAccessibility } from '../../internal/accessibility.js';
 import { createSyntheticEvent, type NativeSyntheticEvent } from '../../internal/events.js';
 import { useFocusable } from '../../internal/focus.js';
+import { usePointerTarget } from '../../internal/pointer.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
-import { resolveColor } from '../../style/colors.js';
+import { blendColor, resolveColor, withBorderBackground } from '../../style/colors.js';
+import { BackgroundColorContext } from '../../internal/contexts.js';
 import { flattenStyle } from '../../style/flatten.js';
 import { resolveTextStyle, splitTextStyle } from '../../style/text.js';
 import type { ColorValue, StyleProp, TextStyle } from '../../style/types.js';
 import { resolveViewStyle } from '../../style/view.js';
+import { FlexDirectionContext, getCellSize } from '../../internal/units.js';
 import type { ViewProps } from '../View/index.js';
 import {
   backspace,
@@ -161,9 +166,13 @@ function keyName(input: string, key: Key): string | undefined {
   return undefined;
 }
 
+/** Yoga's Edge.Left. */
+const EDGE_LEFT = 0;
+
 /**
  * A text field. Typing, pasting, ←/→, Home/End (Ctrl+A/E), Backspace/Delete, Ctrl+U/K/W and,
- * when multiline, ↑/↓ are supported. Tab moves focus away; Esc blurs.
+ * when multiline, ↑/↓ are supported. Tab moves focus away; Esc blurs. With the mouse on, a click
+ * focuses it, with the cursor on the clicked character of a single-line input.
  */
 export function TextInput(props: TextInputProps) {
   const {
@@ -209,8 +218,12 @@ export function TextInput(props: TextInputProps) {
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
   const boxRef = useRef<DOMElement>(null);
+  const parentDirection = useContext(FlexDirectionContext);
+  const inheritedBackground = useContext(BackgroundColorContext);
   const instanceRef = useRef<TextInputInstance | null>(null);
   const scrollRef = useRef(0);
+  /** What a single-line input shows, for placing the cursor where it's clicked. */
+  const visibleRef = useRef<{ start: number; widths: number[] }>({ start: 0, widths: [] });
 
   const textEvent = (type: string) =>
     createSyntheticEvent(type, { text: valueRef.current, target: 0 }, instanceRef.current);
@@ -327,10 +340,12 @@ export function TextInput(props: TextInputProps) {
   );
   usePaste(typed, { isActive: active });
 
-  useImperativeHandle(ref, () => {
+  // The instance exists whether or not a ref asks for it: TextInput.State reports it, and React
+  // only builds a ref's handle when there is a ref.
+  useLayoutEffect(() => {
     const node = boxRef.current;
-    if (!node) return null as unknown as TextInputInstance;
-    const instance = Object.assign(
+    if (!node || instanceRef.current) return;
+    instanceRef.current = Object.assign(
       attachNativeMethods(node, {
         focus: () => focusableRef.current.focus(),
         blur: () => focusableRef.current.blur(),
@@ -346,16 +361,30 @@ export function TextInput(props: TextInputProps) {
         getNativeRef: () => instanceRef.current,
       },
     ) as TextInputInstance;
-    instanceRef.current = instance;
-    return instance;
   }, []);
+  // An input removed while focused gets no blur: it mustn't stay "the focused input".
+  useLayoutEffect(
+    () => () => {
+      if (focusedInput && focusedInput === instanceRef.current) focusedInput = null;
+    },
+    [],
+  );
+  useImperativeHandle(ref, () => instanceRef.current ?? (null as unknown as TextInputInstance), []);
 
   // Styles: text props go to the text, layout props to the surrounding box.
   const { text: textStyle, layout } = splitTextStyle(flattenStyle(style));
-  const resolved = resolveTextStyle(textStyle, 'TextInput');
-  const view = resolveViewStyle(layout, { component: 'TextInput', defaults: INPUT_BOX_DEFAULTS });
-  const box = { ...view.box, ...resolveAccessibility({ accessibilityRole: 'textbox', ...props }) };
+  const resolved = resolveTextStyle(textStyle, 'TextInput', inheritedBackground);
+  const view = resolveViewStyle(layout, {
+    component: 'TextInput',
+    defaults: INPUT_BOX_DEFAULTS,
+    cellSize: getCellSize(),
+    parentDirection,
+    // The box's background is the text's own: borders are drawn over it.
+    background: resolved.backgroundColor ?? inheritedBackground,
+  });
+  let box = { ...view.box, ...resolveAccessibility({ accessibilityRole: 'textbox', ...props }) };
   if (resolved.backgroundColor) box.backgroundColor = resolved.backgroundColor;
+  box = withBorderBackground(box, inheritedBackground);
   if (multiline && numberOfLines) {
     box.minHeight =
       numberOfLines +
@@ -371,18 +400,22 @@ export function TextInput(props: TextInputProps) {
 
   const shown = secureTextEntry ? parts.map((part) => (part === '\n' ? part : '•')) : parts;
   const showCursor = focusable.isFocused && !caretHidden && canEdit;
-  const cursorColorValue = cursorColor ? resolveColor(cursorColor)?.color : undefined;
+  // Over the input's own background (translucent colors are mixed with it).
+  const inputBackground = (box.backgroundColor as string | undefined) ?? inheritedBackground;
+  const opaque = (value: typeof cursorColor) => {
+    const resolved = value ? resolveColor(value) : undefined;
+    return resolved ? blendColor(resolved, inputBackground) : undefined;
+  };
+  const cursorColorValue = opaque(cursorColor);
   const cursorProps = cursorColorValue ? { backgroundColor: cursorColorValue } : { inverse: true };
-  const placeholderColor = placeholderTextColor
-    ? resolveColor(placeholderTextColor)?.color
-    : undefined;
+  const placeholderColor = opaque(placeholderTextColor);
   const placeholderProps = placeholderColor ? { color: placeholderColor } : { dimColor: true };
 
   // Single-line inputs scroll horizontally to keep the cursor visible.
   let start = 0;
   let end = shown.length;
+  const widths = multiline ? [] : shown.map((part) => stringWidth(part));
   if (!multiline && available !== undefined) {
-    const widths = shown.map((part) => stringWidth(part));
     start = Math.min(scrollRef.current, cursor);
     let used =
       widths.slice(start, cursor).reduce((sum, width) => sum + width, 0) + (widths[cursor] ?? 1);
@@ -397,6 +430,33 @@ export function TextInput(props: TextInputProps) {
     }
     scrollRef.current = start;
   }
+  visibleRef.current = { start, widths };
+
+  // A click focuses the input and, on a single line, puts the cursor on the clicked character.
+  usePointerTarget(
+    boxRef,
+    canEdit
+      ? {
+          pressIn(at) {
+            const yoga = boxRef.current?.yogaNode;
+            if (!multiline && yoga) {
+              const { start: first, widths: shownWidths } = visibleRef.current;
+              const column =
+                at.cellX - yoga.getComputedBorder(EDGE_LEFT) - yoga.getComputedPadding(EDGE_LEFT);
+              let index = first;
+              let used = 0;
+              while (index < shownWidths.length && used + shownWidths[index]! <= column) {
+                used += shownWidths[index]!;
+                index++;
+              }
+              commitRef.current({ value: valueRef.current, cursor: index });
+            }
+            focusableRef.current.focus();
+          },
+          pressOut() {},
+        }
+      : null,
+  );
 
   let content: ReactNode;
   if (shown.length === 0) {

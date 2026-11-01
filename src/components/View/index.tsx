@@ -1,11 +1,13 @@
 import { useContext, useImperativeHandle, useMemo, useRef, type ReactNode, type Ref } from 'react';
 import { Box, type DOMElement } from 'ink';
 import { resolveAccessibility, type AccessibilityProps } from '../../internal/accessibility.js';
-import { TextInheritanceContext } from '../../internal/contexts.js';
+import { BackgroundColorContext, TextInheritanceContext } from '../../internal/contexts.js';
 import type { LayoutChangeEvent } from '../../internal/events.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
+import { FlexDirectionContext, getCellSize } from '../../internal/units.js';
 import { warnOnce } from '../../internal/warn.js';
+import { withBorderBackground } from '../../style/colors.js';
 import { flattenStyle } from '../../style/flatten.js';
 import type { StyleProp, ViewStyle } from '../../style/types.js';
 import { resolveViewStyle, type InkBoxProps } from '../../style/view.js';
@@ -82,6 +84,8 @@ export function View(props: ViewProps & Partial<ViewInternalProps>) {
   } = props;
   const component = props.component ?? 'View';
   const inherited = useContext(TextInheritanceContext);
+  const parentDirection = useContext(FlexDirectionContext);
+  const inheritedBackground = useContext(BackgroundColorContext);
   const boxRef = useRef<DOMElement>(null);
 
   useImperativeHandle(
@@ -91,7 +95,13 @@ export function View(props: ViewProps & Partial<ViewInternalProps>) {
     [],
   );
 
-  const resolved = resolveViewStyle(flattenStyle(style), { component });
+  const cellSize = getCellSize();
+  const resolved = resolveViewStyle(flattenStyle(style), {
+    component,
+    cellSize,
+    parentDirection,
+    background: inheritedBackground,
+  });
   const dim = inherited.dim || resolved.dim || Boolean(dimText);
   const hidden = inherited.hidden || resolved.hidden;
   const inverse = inherited.inverse || Boolean(inverseText);
@@ -108,18 +118,26 @@ export function View(props: ViewProps & Partial<ViewInternalProps>) {
     return <>{children}</>;
   }
 
-  const box = { ...resolved.box, ...resolveAccessibility(props), ...overrideBox };
-  const needsContext =
-    dim !== inherited.dim || hidden !== inherited.hidden || inverse !== inherited.inverse;
-  const content = (
-    <Box ref={mergeRefs(boxRef, externalBoxRef)} {...box}>
-      {children}
-      {onLayout ? <LayoutObserver target={boxRef} onLayout={onLayout} /> : null}
-    </Box>
+  const box = withBorderBackground(
+    { ...resolved.box, ...resolveAccessibility(props), ...overrideBox },
+    inheritedBackground,
   );
-  return needsContext ? (
-    <TextInheritanceContext.Provider value={inheritance}>{content}</TextInheritanceContext.Provider>
-  ) : (
-    content
+  const background = (box.backgroundColor as string | undefined) ?? inheritedBackground;
+  // Children scale their flexBasis along this box's main axis (only matters off 1×1 cells).
+  const direction = typeof box.flexDirection === 'string' ? box.flexDirection : 'column';
+  // The providers are always there, in the same shape: adding one only when a value changes
+  // (a pressed background, focus turning text inverse) would put a different element in its
+  // place, and React would remount everything inside — losing its state and its focus.
+  return (
+    <TextInheritanceContext.Provider value={inheritance}>
+      <Box ref={mergeRefs(boxRef, externalBoxRef)} {...box}>
+        <FlexDirectionContext.Provider value={direction}>
+          <BackgroundColorContext.Provider value={background}>
+            {children}
+          </BackgroundColorContext.Provider>
+        </FlexDirectionContext.Provider>
+        {onLayout ? <LayoutObserver target={boxRef} onLayout={onLayout} /> : null}
+      </Box>
+    </TextInheritanceContext.Provider>
   );
 }

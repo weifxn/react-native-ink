@@ -210,21 +210,22 @@ function Dialog({ request }: { request: DialogRequest }) {
   return (
     <Modal transparent visible onRequestClose={requestClose}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        {/* The dialog's own spacing is in cells (Ink props), whatever cell size the app set. */}
         <View
-          style={{
-            borderWidth: 1,
-            borderRadius: 1,
-            paddingHorizontal: 2,
-            paddingVertical: 1,
+          style={{ borderWidth: 1, borderRadius: 1, maxWidth: '80%' }}
+          overrideBox={{
+            backgroundColor: CLEAR_BACKGROUND,
+            paddingLeft: 2,
+            paddingRight: 2,
+            paddingTop: 1,
+            paddingBottom: 1,
             minWidth: 24,
-            maxWidth: '80%',
           }}
-          overrideBox={{ backgroundColor: CLEAR_BACKGROUND }}
         >
           {request.title ? <Text style={{ fontWeight: 'bold' }}>{request.title}</Text> : null}
           {request.message ? <Text>{request.message}</Text> : null}
           {request.prompt ? (
-            <View style={{ marginTop: 1 }}>
+            <View overrideBox={{ marginTop: 1 }}>
               <TextInput
                 autoFocus
                 value={text}
@@ -252,9 +253,8 @@ function Dialog({ request }: { request: DialogRequest }) {
             style={{
               flexDirection: request.vertical ? 'column' : 'row',
               justifyContent: 'flex-end',
-              columnGap: 1,
-              marginTop: 1,
             }}
+            overrideBox={{ columnGap: 1, marginTop: 1 }}
           >
             {request.buttons.map((button, index) => (
               <Button

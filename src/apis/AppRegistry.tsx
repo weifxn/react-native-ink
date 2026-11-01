@@ -1,8 +1,7 @@
 import { Fragment, type ComponentType, type ReactElement } from 'react';
-import { renderToString as inkRenderToString, type Instance, type RenderOptions } from 'ink';
+import { renderToString as inkRenderToString, type Instance } from 'ink';
 import { AppRoot } from '../internal/AppRoot.js';
-import { AppContent, ModalOutlet } from '../internal/modalHost.js';
-import { allocateRootTag, render } from '../render.js';
+import { allocateRootTag, render, type RenderOptions } from '../render.js';
 
 export type ComponentProvider = () => ComponentType<any>;
 export type ComponentProviderInstrumentationHook = (
@@ -20,7 +19,7 @@ export interface AppConfig {
   section?: boolean;
 }
 
-/** `initialProps` for the root component, plus Ink's render options (stdout, stdin, exitOnCtrlC, ...). */
+/** `initialProps` for the root component, plus the render options (stdout, stdin, exitOnCtrlC, mouse, ...). */
 export interface AppParameters extends RenderOptions {
   initialProps?: Record<string, unknown>;
   rootTag?: number;
@@ -40,7 +39,7 @@ const instances = new Map<number, { appKey: string; instance: Instance }>();
 let wrapperComponentProvider: WrapperComponentProvider | undefined;
 let instrumentationHook: ComponentProviderInstrumentationHook = (provider) => provider();
 
-/** The root element; modals render inside the wrapper so its providers reach them. */
+/** The app's element, inside the wrapper component if one is set. */
 function buildElement(
   componentProvider: ComponentProvider,
   initialProps: Record<string, unknown>,
@@ -50,10 +49,7 @@ function buildElement(
   const Wrapper = wrapperComponentProvider?.({ initialProps, rootTag }) ?? Fragment;
   return (
     <Wrapper {...(Wrapper === Fragment ? {} : initialProps)}>
-      <AppContent>
-        <Component {...initialProps} rootTag={rootTag} />
-      </AppContent>
-      <ModalOutlet />
+      <Component {...initialProps} rootTag={rootTag} />
     </Wrapper>
   );
 }
@@ -68,7 +64,6 @@ function runComponent(
     buildElement(componentProvider, initialProps, rootTag),
     renderOptions,
     rootTag,
-    false,
   );
   instances.set(rootTag, { appKey, instance });
   instance.waitUntilExit().then(
@@ -163,7 +158,7 @@ export const AppRegistry = {
         (appParameters.rootTag === undefined || appParameters.rootTag === rootTag)
       ) {
         entry.instance.rerender(
-          <AppRoot rootTag={rootTag} outlet={false}>
+          <AppRoot rootTag={rootTag}>
             {buildElement(
               registration.componentProvider,
               appParameters.initialProps ?? {},
@@ -192,7 +187,7 @@ export const AppRegistry = {
     if (!registration?.componentProvider) throw notRegistered(appKey);
     const rootTag = appParameters.rootTag ?? allocateRootTag();
     const element = (
-      <AppRoot rootTag={rootTag} outlet={false}>
+      <AppRoot rootTag={rootTag}>
         {buildElement(registration.componentProvider, appParameters.initialProps ?? {}, rootTag)}
       </AppRoot>
     );

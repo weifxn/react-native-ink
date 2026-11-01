@@ -9,7 +9,15 @@ import { App as Form } from '../examples/form/App.js';
 import { App as Hello } from '../examples/hello/App.js';
 import { App as List } from '../examples/list/App.js';
 import { Greeting } from '../examples/shared-code/Greeting.js';
-import { keys, press, renderInteractive, renderText, tick, waitFor } from './helpers.js';
+import {
+  inputFocused,
+  keys,
+  press,
+  renderInteractive,
+  renderText,
+  tick,
+  waitFor,
+} from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -33,7 +41,7 @@ describe('examples', () => {
 
   it('form signs up', async () => {
     const { stdin, lastFrame } = renderInteractive(<Form />);
-    await tick();
+    await inputFocused();
     await press(stdin, 'Ada', keys.tab, 'secret', keys.tab, keys.space, keys.tab, keys.enter);
     await tick();
     await waitFor(() => expect(lastFrame()).toContain('Welcome, Ada!'));

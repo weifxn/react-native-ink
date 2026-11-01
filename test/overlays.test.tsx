@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from 'ink-testing-library';
 import {
@@ -8,11 +8,12 @@ import {
   BackHandler,
   Button,
   Modal,
+  ScrollView,
   Text,
   ToastAndroid,
   View,
 } from '../src/index.js';
-import { keys, press, renderInteractive, tick, waitFor } from './helpers.js';
+import { inputFocused, keys, press, renderInteractive, settle, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -58,7 +59,7 @@ describe('Modal', () => {
   it('limits focus to the top modal', async () => {
     const outside = vi.fn();
     const inside = vi.fn();
-    const { stdin } = renderInteractive(
+    const { stdin, lastFrame } = renderInteractive(
       <View>
         <Button title="outside" onPress={outside} />
         <Modal>
@@ -66,7 +67,9 @@ describe('Modal', () => {
         </Modal>
       </View>,
     );
-    await tick();
+    // The modal's content mounts a few renders after the Modal: wait for it, and its effects.
+    await waitFor(() => expect(lastFrame()).toContain('[ inside ]'));
+    await settle();
     await press(stdin, keys.tab, keys.enter, keys.tab, keys.enter);
     await waitFor(() => expect(inside).toHaveBeenCalledTimes(2));
     expect(outside).not.toHaveBeenCalled();
@@ -94,6 +97,67 @@ describe('Modal', () => {
   });
 });
 
+describe('Modal content', () => {
+  const Theme = createContext('default theme');
+
+  function Themed() {
+    return <Text>{useContext(Theme)}</Text>;
+  }
+
+  it("keeps the context of the Modal's ancestors, as in React Native", async () => {
+    const { lastFrame } = renderInteractive(
+      <Theme.Provider value="app theme">
+        <Text>main</Text>
+        <Modal visible>
+          <Themed />
+        </Modal>
+      </Theme.Provider>,
+    );
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('app theme'));
+  });
+
+  it('updates in place while open', async () => {
+    function Counter() {
+      const [count, setCount] = useState(0);
+      useEffect(() => {
+        if (count < 3) {
+          const timer = setTimeout(() => setCount(count + 1), 20);
+          return () => clearTimeout(timer);
+        }
+        return undefined;
+      }, [count]);
+      return (
+        <Modal visible>
+          <Text>{`count ${count}`}</Text>
+        </Modal>
+      );
+    }
+    const { lastFrame } = renderInteractive(<Counter />);
+    await waitFor(() => expect(lastFrame()?.split('\n')[0]).toBe('count 3'));
+  });
+
+  it("doesn't take on the layout of where it is declared", async () => {
+    const { lastFrame } = renderInteractive(
+      <ScrollView style={{ height: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={{ opacity: 0.5, width: 4 }}>
+          <Text>dim</Text>
+          <Modal visible>
+            <Text>a line wider than the view it was declared in</Text>
+            <Text>and a second one</Text>
+          </Modal>
+        </View>
+      </ScrollView>,
+    );
+    // Not clipped by the one-row ScrollView or the four-column View around the Modal.
+    await waitFor(() =>
+      expect(lastFrame()?.split('\n').slice(0, 2)).toEqual([
+        'a line wider than the view it was declared in',
+        'and a second one',
+      ]),
+    );
+  });
+});
+
 describe('Alert', () => {
   it('shows a dialog and calls the pressed button', async () => {
     const onDelete = vi.fn();
@@ -107,6 +171,8 @@ describe('Alert', () => {
     await waitFor(() => expect(lastFrame()).toContain('Delete file?'));
     await waitFor(() => expect(lastFrame()).toContain('This cannot be undone.'));
     await waitFor(() => expect(lastFrame()).toContain('[ Cancel ]'));
+    // The focused button subscribes to input in an effect after the frame that shows it.
+    await settle();
     await press(stdin, keys.enter);
     await tick();
     await waitFor(() => expect(onDelete).toHaveBeenCalledOnce());
@@ -121,7 +187,9 @@ describe('Alert', () => {
       { text: 'No', style: 'cancel', onPress: onCancel },
       { text: 'Yes' },
     ]);
-    await tick(100);
+    // Esc goes to the open dialog once it has subscribed (in an effect after it shows).
+    await waitFor(() => expect(lastFrame()).toContain('Quit?'));
+    await settle();
     await press(stdin, keys.escape);
     await tick();
     await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
@@ -133,7 +201,7 @@ describe('Alert', () => {
     const { stdin } = renderInteractive(<Text>app</Text>);
     await tick();
     Alert.prompt('Your name', undefined, onSubmit);
-    await tick(100);
+    await inputFocused();
     await press(stdin, 'Ada', keys.enter);
     await tick();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('Ada'));
@@ -149,8 +217,8 @@ describe('ActionSheetIOS', () => {
       { options: ['Cancel', 'Copy', 'Delete'], cancelButtonIndex: 0 },
       callback,
     );
-    await tick(100);
     await waitFor(() => expect(lastFrame()).toContain('[ Copy ]'));
+    await settle();
     await press(stdin, keys.tab, keys.enter);
     await tick();
     await waitFor(() => expect(callback).toHaveBeenCalledWith(1));

@@ -17,12 +17,17 @@ export function detectColorScheme(env: NodeJS.ProcessEnv = process.env): 'light'
 }
 
 let override: 'light' | 'dark' | null = null;
-const listeners = new Set<(preferences: { colorScheme: 'light' | 'dark' | null }) => void>();
+const listeners = new Set<(preferences: { colorScheme: ColorSchemeName }) => void>();
 
-const current = (): 'light' | 'dark' | null => override ?? detectColorScheme();
+/**
+ * React Native's types promise a `ColorSchemeName`, never null — code like
+ * `scheme === 'dark' ? dark : light` or a `Record<ColorSchemeName, …>` lookup relies on it —
+ * so an unknown terminal background is `'unspecified'`.
+ */
+const current = (): ColorSchemeName => override ?? detectColorScheme() ?? 'unspecified';
 
 export const Appearance = {
-  getColorScheme(): 'light' | 'dark' | null {
+  getColorScheme(): ColorSchemeName {
     return current();
   },
   /** Overrides the detected scheme; `null`/`'unspecified'` returns to detection. */
@@ -32,7 +37,7 @@ export const Appearance = {
     listeners.forEach((listener) => listener({ colorScheme }));
   },
   addChangeListener(
-    listener: (preferences: { colorScheme: 'light' | 'dark' | null }) => void,
+    listener: (preferences: { colorScheme: ColorSchemeName }) => void,
   ): EmitterSubscription {
     listeners.add(listener);
     return {
@@ -48,8 +53,8 @@ const subscribe = (onChange: () => void) => {
   return () => subscription.remove();
 };
 
-/** The current color scheme ('light', 'dark' or null when unknown). */
-export function useColorScheme(): 'light' | 'dark' | null {
+/** The current color scheme: 'light', 'dark', or 'unspecified' when the terminal doesn't say. */
+export function useColorScheme(): ColorSchemeName {
   return useSyncExternalStore(subscribe, current, current);
 }
 

@@ -1,6 +1,6 @@
 import { isUnicodeSupported } from '../internal/terminal.js';
 import { warnOnce } from '../internal/warn.js';
-import { resolveColor } from './colors.js';
+import { blendColor, resolveColor } from './colors.js';
 import { BORDER_RADIUS_KEYS } from './support.js';
 import type { ViewStyle } from './types.js';
 
@@ -58,6 +58,8 @@ export interface BorderOptions {
   hidden?: boolean;
   /** Override Unicode detection (tests). */
   unicode?: boolean;
+  /** The color under the border, which a translucent border color is mixed with. */
+  background?: string;
 }
 
 const sideWidth = (style: ViewStyle, keys: ReadonlyArray<keyof ViewStyle>, component: string) => {
@@ -82,6 +84,7 @@ const sideColor = (
   style: ViewStyle,
   keys: ReadonlyArray<keyof ViewStyle>,
   component: string,
+  background: string | undefined,
 ): { color?: string; transparent: boolean } => {
   for (const key of keys) {
     const value = style[key];
@@ -101,7 +104,7 @@ const sideColor = (
     }
     return resolved.alpha === 0
       ? { transparent: true }
-      : { color: resolved.color, transparent: false };
+      : { color: blendColor(resolved, background), transparent: false };
   }
   return { transparent: false };
 };
@@ -152,19 +155,32 @@ export function resolveBorders(style: ViewStyle, options: BorderOptions): Record
     base = NAMED_BOX_STYLES.single!;
   }
 
+  const under = options.background;
   const colors: Record<Side, { color?: string; transparent: boolean }> = {
     top: sideColor(
       style,
       ['borderTopColor', 'borderBlockStartColor', 'borderBlockColor', 'borderColor'],
       component,
+      under,
     ),
-    right: sideColor(style, ['borderEndColor', 'borderRightColor', 'borderColor'], component),
+    right: sideColor(
+      style,
+      ['borderEndColor', 'borderRightColor', 'borderColor'],
+      component,
+      under,
+    ),
     bottom: sideColor(
       style,
       ['borderBottomColor', 'borderBlockEndColor', 'borderBlockColor', 'borderColor'],
       component,
+      under,
     ),
-    left: sideColor(style, ['borderStartColor', 'borderLeftColor', 'borderColor'], component),
+    left: sideColor(
+      style,
+      ['borderStartColor', 'borderLeftColor', 'borderColor'],
+      component,
+      under,
+    ),
   };
 
   let box: BoxGlyphs = base;

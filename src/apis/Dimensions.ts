@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { currentStdout } from '../internal/root.js';
+import { getCellSize } from '../internal/units.js';
 import { sizeOfStream, useTerminalSize } from '../internal/useTerminalSize.js';
 import type { EmitterSubscription } from './EventEmitter.js';
 
@@ -15,12 +16,21 @@ export interface DimensionsChange {
   screen: ScaledSize;
 }
 
-function sizeOf(stream: NodeJS.WriteStream): ScaledSize {
-  const { columns, rows } = sizeOfStream(stream);
-  return { width: columns, height: rows, scale: 1, fontScale: 1 };
+/** A terminal of `columns` × `rows` cells, in layout units (see `setCellSize`). */
+function scaled(columns: number, rows: number): ScaledSize {
+  const cell = getCellSize();
+  return { width: columns * cell.width, height: rows * cell.height, scale: 1, fontScale: 1 };
 }
 
-/** Terminal size in cells: `width` is columns, `height` is rows. */
+function sizeOf(stream: NodeJS.WriteStream): ScaledSize {
+  const { columns, rows } = sizeOfStream(stream);
+  return scaled(columns, rows);
+}
+
+/**
+ * Terminal size: `width` is columns and `height` is rows, times the cell size when one is set
+ * with `setCellSize`.
+ */
 export const Dimensions = {
   get(_dim: 'window' | 'screen'): ScaledSize {
     return sizeOf(currentStdout());
@@ -44,10 +54,10 @@ export const Dimensions = {
   },
 };
 
-/** Terminal size in cells; re-renders when the terminal is resized. */
+/** Terminal size (in layout units, like `Dimensions`); re-renders when the terminal is resized. */
 export function useWindowDimensions(): ScaledSize {
   const { columns, rows } = useTerminalSize();
-  return useMemo(() => ({ width: columns, height: rows, scale: 1, fontScale: 1 }), [columns, rows]);
+  return useMemo(() => scaled(columns, rows), [columns, rows]);
 }
 
 /** One layout unit is one cell, so the pixel ratio is always 1. */

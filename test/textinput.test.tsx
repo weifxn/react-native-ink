@@ -19,7 +19,7 @@ import {
 import { TextInput, type TextInputInstance } from '../src/components/TextInput/index.js';
 import { Text } from '../src/components/Text/index.js';
 import { View } from '../src/components/View/index.js';
-import { keys, press, renderInteractive, tick, waitFor } from './helpers.js';
+import { inputFocused, keys, press, renderInteractive, tick, waitFor } from './helpers.js';
 
 afterEach(() => {
   cleanup();
@@ -77,7 +77,7 @@ describe('TextInput', () => {
     const { stdin, lastFrame } = renderInteractive(
       <TextInput defaultValue="ac" autoFocus onChangeText={onChangeText} />,
     );
-    await tick();
+    await inputFocused();
     await press(stdin, keys.left, 'b');
     await waitFor(() => expect(lastFrame()).toBe('abc'));
     await waitFor(() => expect(onChangeText).toHaveBeenLastCalledWith('abc'));
@@ -96,7 +96,7 @@ describe('TextInput', () => {
       );
     }
     const { stdin, lastFrame } = renderInteractive(<Controlled />);
-    await tick();
+    await inputFocused();
     await press(stdin, 'hi');
     await waitFor(() => expect(lastFrame()).toBe('HI\nvalue=HI'));
   });
@@ -111,7 +111,7 @@ describe('TextInput', () => {
         onBlur={onBlur}
       />,
     );
-    await tick();
+    await inputFocused();
     await press(stdin, 'done', keys.enter);
     await waitFor(() => expect(onSubmitEditing).toHaveBeenCalledWith('done'));
     await waitFor(() => expect(onBlur).toHaveBeenCalledOnce());
@@ -124,7 +124,7 @@ describe('TextInput', () => {
     const { stdin, lastFrame } = renderInteractive(
       <TextInput autoFocus submitBehavior="submit" onSubmitEditing={onSubmitEditing} />,
     );
-    await tick();
+    await inputFocused();
     await press(stdin, 'a', keys.enter, 'b');
     await waitFor(() => expect(onSubmitEditing).toHaveBeenCalledOnce());
     await waitFor(() => expect(lastFrame()).toBe('ab'));
@@ -132,7 +132,7 @@ describe('TextInput', () => {
 
   it('inserts newlines when multiline', async () => {
     const { stdin, lastFrame } = renderInteractive(<TextInput autoFocus multiline />);
-    await tick();
+    await inputFocused();
     await press(stdin, 'one', keys.enter, 'two', keys.up, 'X');
     await waitFor(() => expect(lastFrame()).toBe('oneX\ntwo'));
   });
@@ -158,7 +158,7 @@ describe('TextInput', () => {
         onKeyPress={(event) => pressed.push(event.nativeEvent.key)}
       />,
     );
-    await tick();
+    await inputFocused();
     await press(stdin, 'a', 'b', 'c', 'd', keys.backspace);
     await waitFor(() => expect(lastFrame()).toBe('ab'));
     await waitFor(() => expect(pressed).toEqual(['a', 'b', 'c', 'd', 'Backspace']));
@@ -166,7 +166,7 @@ describe('TextInput', () => {
 
   it('supports Ctrl+W, Ctrl+U and bracketed paste', async () => {
     const { stdin, lastFrame } = renderInteractive(<TextInput autoFocus />);
-    await tick();
+    await inputFocused();
     await press(stdin, 'hello world', keys.ctrlW);
     await waitFor(() => expect(lastFrame()).toBe('hello'));
     await press(stdin, keys.ctrlU, '\u001B[200~pasted\ntext\u001B[201~');
@@ -191,7 +191,7 @@ describe('TextInput', () => {
         <TextInput autoFocus />
       </View>,
     );
-    await tick();
+    await inputFocused();
     await press(stdin, 'abcdefghijklmnop');
     await tick();
     await waitFor(() => expect(lastFrame()).toBe('hijklmnop'));
@@ -205,12 +205,36 @@ describe('TextInput', () => {
     chalk.level = 3;
     try {
       const { stdin, lastFrame } = renderInteractive(<TextInput autoFocus defaultValue="ab" />);
-      await tick();
+      await inputFocused();
       await press(stdin, keys.left);
       await waitFor(() => expect(lastFrame()).toContain('a\u001b[7mb\u001b[27m'));
     } finally {
       chalk.level = previous;
     }
+  });
+
+  it('is reported by TextInput.State while focused, with or without a ref', async () => {
+    const { stdin, lastFrame } = renderInteractive(<TextInput placeholder="no ref" />);
+    await waitFor(() => expect(lastFrame()).toBe('no ref'));
+    expect(TextInput.State.currentlyFocusedInput()).toBeNull();
+    await press(stdin, keys.tab);
+    await waitFor(() => expect(TextInput.State.currentlyFocusedInput()).not.toBeNull());
+    await press(stdin, keys.escape);
+    await waitFor(() => expect(TextInput.State.currentlyFocusedInput()).toBeNull());
+  });
+
+  it('stops being the focused input when it goes while focused', async () => {
+    const remove: { current: (() => void) | null } = { current: null };
+    function Field() {
+      const [shown, setShown] = useState(true);
+      remove.current = () => setShown(false);
+      return shown ? <TextInput autoFocus placeholder="going" /> : <Text>gone</Text>;
+    }
+    const { lastFrame } = renderInteractive(<Field />);
+    await waitFor(() => expect(TextInput.State.currentlyFocusedInput()).not.toBeNull());
+    remove.current?.();
+    await waitFor(() => expect(lastFrame()).toBe('gone'));
+    expect(TextInput.State.currentlyFocusedInput()).toBeNull();
   });
 
   it('exposes focus, blur, clear and isFocused on its ref', async () => {

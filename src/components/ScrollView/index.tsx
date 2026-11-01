@@ -1,6 +1,7 @@
 import {
   isValidElement,
   useCallback,
+  useContext,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -12,11 +13,17 @@ import {
   type Ref,
 } from 'react';
 import { Box, Text as InkText, useBoxMetrics, useInput, type DOMElement } from 'ink';
-import { ScrollIntoViewContext } from '../../internal/contexts.js';
+import { FocusScopeContext, ScrollIntoViewContext } from '../../internal/contexts.js';
+import {
+  ScrollDepthContext,
+  registerScroller,
+  type ScrollAction,
+} from '../../internal/scrollers.js';
 import { createSyntheticEvent, type NativeSyntheticEvent } from '../../internal/events.js';
 import { useFocusable } from '../../internal/focus.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
 import { isUnicodeSupported } from '../../internal/terminal.js';
+import { FlexDirectionContext, fromCells, getCellSize, toCells } from '../../internal/units.js';
 import type { StyleProp, ViewStyle } from '../../style/types.js';
 import { ActivityIndicator } from '../ActivityIndicator/index.js';
 import type { RefreshControlProps } from '../simple.js';
@@ -72,7 +79,7 @@ export interface ScrollViewProps extends Omit<ViewProps, 'ref'> {
   keyboardDismissMode?: 'none' | 'interactive' | 'on-drag';
   /** @remarks Ignored in terminals. */
   bounces?: boolean;
-  /** @remarks Ignored in terminals. */
+  /** Arrow keys move a whole page (the viewport), landing on page boundaries. */
   pagingEnabled?: boolean;
   /** @remarks Ignored in terminals. */
   scrollEventThrottle?: number;
@@ -90,11 +97,11 @@ export interface ScrollViewProps extends Omit<ViewProps, 'ref'> {
   indicatorStyle?: 'default' | 'black' | 'white';
   /** @remarks Ignored in terminals. */
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  /** @remarks Ignored in terminals. */
+  /** Called when a scroll from the keyboard has landed, before `onMomentumScrollEnd`. */
   onScrollEndDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   /** @remarks Ignored in terminals. */
   onMomentumScrollBegin?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  /** @remarks Ignored in terminals. */
+  /** Called when a scroll from the keyboard has landed (a terminal's equivalent of a fling ending). */
   onMomentumScrollEnd?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ref?: Ref<ScrollViewInstance | null>;
 }
@@ -103,6 +110,13 @@ const clamp = (value: number, max: number) => Math.max(0, Math.min(Math.round(va
 
 /** Yoga's Overflow.Scroll: children are measured without a limit along the scroll axis. */
 const YOGA_OVERFLOW_SCROLL = 2;
+
+/** Cells a step of the mouse wheel scrolls, as most terminal programs do. */
+const WHEEL_STEP = 3;
+/** Wheel steps closer together than this are one burst, which turns one page when paging. */
+const PAGE_WHEEL_GAP_MS = 200;
+/** How long End keeps the view at the end while what's there settles. */
+const PIN_TO_END_MS = 400;
 
 interface IndicatorProps {
   horizontal: boolean;
@@ -196,7 +210,7 @@ export function ScrollView(props: ScrollViewProps) {
     keyboardShouldPersistTaps: _a,
     keyboardDismissMode: _b,
     bounces: _c,
-    pagingEnabled: _d,
+    pagingEnabled,
     scrollEventThrottle: _e,
     decelerationRate: _f,
     snapToInterval: _g,
@@ -205,9 +219,9 @@ export function ScrollView(props: ScrollViewProps) {
     persistentScrollbar: _j,
     indicatorStyle: _k,
     onScrollBeginDrag: _l,
-    onScrollEndDrag: _m,
+    onScrollEndDrag,
     onMomentumScrollBegin: _n,
-    onMomentumScrollEnd: _o,
+    onMomentumScrollEnd,
     ...viewProps
   } = props;
   const horizontal = Boolean(horizontalProp);
@@ -227,10 +241,12 @@ export function ScrollView(props: ScrollViewProps) {
       relayout();
     }
   });
-  const [offset, setOffset] = useState<NativeScrollPoint>({
-    x: contentOffset?.x ?? 0,
-    y: contentOffset?.y ?? 0,
-  });
+  // Offsets are kept in cells; the props, events and ref methods speak layout units.
+  const cell = getCellSize();
+  const [offset, setOffset] = useState<NativeScrollPoint>(() => ({
+    x: toCells(contentOffset?.x ?? 0, cell, 'x', 'space'),
+    y: toCells(contentOffset?.y ?? 0, cell, 'y', 'space'),
+  }));
 
   const maxX = Math.max(0, content.width - viewport.width);
   const maxY = Math.max(0, content.height - viewport.height);
@@ -242,6 +258,8 @@ export function ScrollView(props: ScrollViewProps) {
   live.current = { maxX, maxY, current, width: viewport.width, height: viewport.height };
 
   const focus = useFocusable({ enabled: scrollEnabled && overflows, autoFocus, nodeRef: outerRef });
+  const depth = useContext(ScrollDepthContext);
+  const scopeActive = useContext(FocusScopeContext);
 
   const scrollTo = useCallback((x?: number, y?: number) => {
     setOffset((previous) => {
@@ -253,78 +271,225 @@ export function ScrollView(props: ScrollViewProps) {
     });
   }, []);
 
+  // Set by a scroll from the keyboard, so the scroll events it causes also report it as ended.
+  const userScroll = useRef(false);
+  // End (or scrollToEnd) keeps the view at the end for a moment, while what was just rendered
+  // there settles (a list measures the rows it renders) and moves the end. Only for a moment, so
+  // a list that loads more as its end is reached doesn't drag the view on through every page.
+  const pinnedUntil = useRef(0);
+  const pinToEnd = (on: boolean) => {
+    pinnedUntil.current = on ? Date.now() + PIN_TO_END_MS : 0;
+  };
+  const paging = Boolean(pagingEnabled);
+
+  /** A step from the keyboard: a cell (a page when paging), a page, or to either end. */
+  const scrollBy = useCallback(
+    (action: ScrollAction) => {
+      const { current: position, width, height, maxX: limitX, maxY: limitY } = live.current;
+      const at = horizontal ? position.x : position.y;
+      const page = horizontal ? width : height;
+      const limit = horizontal ? limitX : limitY;
+      // Paging lands on page boundaries, as a paging scroll view does after a swipe.
+      const toPage = (direction: 1 | -1) =>
+        page > 0 ? (Math.round(at / page) + direction) * page : at;
+      const targets: Record<ScrollAction, number> = {
+        up: paging ? toPage(-1) : at - 1,
+        down: paging ? toPage(1) : at + 1,
+        pageUp: paging ? toPage(-1) : at - page,
+        pageDown: paging ? toPage(1) : at + page,
+        home: 0,
+        end: limit,
+      };
+      pinToEnd(action === 'end');
+      const target = clamp(targets[action], limit);
+      if (target === at) return;
+      userScroll.current = true;
+      if (horizontal) scrollTo(target);
+      else scrollTo(undefined, target);
+    },
+    [horizontal, paging, scrollTo],
+  );
+
   useInput(
     (_input, key) => {
-      const { current: position, width, height, maxX: limitX, maxY: limitY } = live.current;
-      if (horizontal) {
-        if (key.leftArrow) scrollTo(position.x - 1);
-        else if (key.rightArrow) scrollTo(position.x + 1);
-        else if (key.pageUp) scrollTo(position.x - width);
-        else if (key.pageDown) scrollTo(position.x + width);
-        else if (key.home) scrollTo(0);
-        else if (key.end) scrollTo(limitX);
-      } else if (key.upArrow) scrollTo(undefined, position.y - 1);
-      else if (key.downArrow) scrollTo(undefined, position.y + 1);
-      else if (key.pageUp) scrollTo(undefined, position.y - height);
-      else if (key.pageDown) scrollTo(undefined, position.y + height);
-      else if (key.home) scrollTo(undefined, 0);
-      else if (key.end) scrollTo(undefined, limitY);
+      const back = horizontal ? key.leftArrow : key.upArrow;
+      const forward = horizontal ? key.rightArrow : key.downArrow;
+      const action: ScrollAction | undefined = back
+        ? 'up'
+        : forward
+          ? 'down'
+          : key.pageUp
+            ? 'pageUp'
+            : key.pageDown
+              ? 'pageDown'
+              : key.home
+                ? 'home'
+                : key.end
+                  ? 'end'
+                  : undefined;
+      if (action) scrollBy(action);
     },
     { isActive: focus.receivesInput && scrollEnabled },
   );
 
-  const callbacks = useRef({ onScroll, onContentSizeChange });
-  callbacks.current = { onScroll, onContentSizeChange };
+  // A vertical ScrollView can be the page's: with nothing focused, the arrow keys scroll the
+  // outermost one (see AppRoot), as they scroll a browser's page.
+  const scrollable = useRef(false);
+  scrollable.current = scrollEnabled && overflows && scopeActive;
+
+  // The mouse wheel: a few cells a step; a page a burst when paging, since a wheel or trackpad
+  // sends steps in quick succession and each would otherwise turn a page.
+  const lastWheel = useRef(0);
+  const wheel = useCallback(
+    (direction: 1 | -1) => {
+      if (!scrollable.current) return false;
+      const { current: position, maxX: limitX, maxY: limitY } = live.current;
+      const at = horizontal ? position.x : position.y;
+      const limit = horizontal ? limitX : limitY;
+      if (direction < 0 ? at <= 0 : at >= limit) return false;
+      if (paging) {
+        const now = Date.now();
+        const burst = now - lastWheel.current < PAGE_WHEEL_GAP_MS;
+        lastWheel.current = now;
+        if (!burst) scrollBy(direction < 0 ? 'up' : 'down');
+        return true;
+      }
+      const target = clamp(at + direction * WHEEL_STEP, limit);
+      userScroll.current = true;
+      pinToEnd(false);
+      if (horizontal) scrollTo(target);
+      else scrollTo(undefined, target);
+      return true;
+    },
+    [horizontal, paging, scrollBy, scrollTo],
+  );
+
+  const latest = useRef({ scrollBy, wheel });
+  latest.current = { scrollBy, wheel };
+  useEffect(
+    () =>
+      registerScroller({
+        depth,
+        horizontal,
+        node: () => outerRef.current,
+        canScroll: () => scrollable.current,
+        scroll: (action) => latest.current.scrollBy(action),
+        wheel: (direction) => latest.current.wheel(direction),
+      }),
+    [horizontal, depth],
+  );
+
+  const callbacks = useRef({ onScroll, onContentSizeChange, onScrollEndDrag, onMomentumScrollEnd });
+  callbacks.current = { onScroll, onContentSizeChange, onScrollEndDrag, onMomentumScrollEnd };
   useEffect(() => {
     if (!measured) return;
-    callbacks.current.onScroll?.(
+    const event = () =>
       createSyntheticEvent(
         'scroll',
         {
-          contentOffset: { x: current.x, y: current.y },
-          contentSize: { width: content.width, height: content.height },
-          layoutMeasurement: { width: viewport.width, height: viewport.height },
+          contentOffset: { x: fromCells(current.x, cell, 'x'), y: fromCells(current.y, cell, 'y') },
+          contentSize: {
+            width: fromCells(content.width, cell, 'x'),
+            height: fromCells(content.height, cell, 'y'),
+          },
+          layoutMeasurement: {
+            width: fromCells(viewport.width, cell, 'x'),
+            height: fromCells(viewport.height, cell, 'y'),
+          },
           contentInset: { top: 0, left: 0, bottom: 0, right: 0 },
           zoomScale: 1,
         },
         outerRef.current,
-      ),
-    );
+      );
+    callbacks.current.onScroll?.(event());
+    if (userScroll.current) {
+      // A keyboard step lands at once: the drag and the momentum that follow it both end here.
+      userScroll.current = false;
+      callbacks.current.onScrollEndDrag?.(event());
+      callbacks.current.onMomentumScrollEnd?.(event());
+    }
     // Only offset changes fire onScroll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.x, current.y, measured]);
   useEffect(() => {
-    if (content.hasMeasured) callbacks.current.onContentSizeChange?.(content.width, content.height);
+    if (Date.now() > pinnedUntil.current || !measured) return;
+    if (horizontal) scrollTo(live.current.maxX);
+    else scrollTo(undefined, live.current.maxY);
+  }, [
+    content.width,
+    content.height,
+    viewport.width,
+    viewport.height,
+    measured,
+    horizontal,
+    scrollTo,
+  ]);
+  useEffect(() => {
+    if (content.hasMeasured) {
+      callbacks.current.onContentSizeChange?.(
+        fromCells(content.width, cell, 'x'),
+        fromCells(content.height, cell, 'y'),
+      );
+    }
+    // The cell size is fixed before the app renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content.width, content.height, content.hasMeasured]);
 
+  const outerScroll = useContext(ScrollIntoViewContext);
   const scrollIntoView = useMemo(
     () => ({
-      scrollIntoView(node: DOMElement) {
+      scrollIntoView(
+        node: DOMElement,
+        part?: { x: number; y: number; width: number; height: number },
+      ) {
         const container = contentRef.current;
-        if (!container) return;
-        const rect = offsetWithin(node, container);
-        if (!rect) return;
-        const { current: position, width, height } = live.current;
+        const viewportNode = viewportRef.current;
+        if (!container || !viewportNode) return;
+        const at = offsetWithin(node, container);
+        if (!at) return;
+        const rect = part
+          ? { x: at.x + part.x, y: at.y + part.y, width: part.width, height: part.height }
+          : at;
+        const { current: position, width, height, maxX: limitX, maxY: limitY } = live.current;
+        let next = { ...position };
         if (horizontal) {
-          if (rect.x < position.x) scrollTo(rect.x);
-          else if (rect.x + rect.width > position.x + width) scrollTo(rect.x + rect.width - width);
-        } else if (rect.y < position.y) scrollTo(undefined, rect.y);
-        else if (rect.y + rect.height > position.y + height)
-          scrollTo(undefined, rect.y + rect.height - height);
+          if (rect.x < position.x) next.x = rect.x;
+          else if (rect.x + rect.width > position.x + width) next.x = rect.x + rect.width - width;
+        } else if (rect.y < position.y) next.y = rect.y;
+        else if (rect.y + rect.height > position.y + height) next.y = rect.y + rect.height - height;
+        next = { x: clamp(next.x, limitX), y: clamp(next.y, limitY) };
+        if (next.x !== position.x || next.y !== position.y) {
+          pinToEnd(false);
+          scrollTo(next.x, next.y);
+        }
+        // Then the ScrollView around this one, for the part of this viewport the target now fills.
+        outerScroll?.scrollIntoView(viewportNode, {
+          x: rect.x - next.x,
+          y: rect.y - next.y,
+          width: rect.width,
+          height: rect.height,
+        });
       },
     }),
-    [horizontal, scrollTo],
+    [horizontal, scrollTo, outerScroll],
   );
 
   useImperativeHandle(ref, () => {
     const node = outerRef.current;
     if (!node) return null as unknown as ScrollViewInstance;
+    const cellX = (value?: number) =>
+      value === undefined ? undefined : toCells(value, getCellSize(), 'x', 'space');
+    const cellY = (value?: number) =>
+      value === undefined ? undefined : toCells(value, getCellSize(), 'y', 'space');
     const instance = Object.assign(attachNativeMethods(node), {
+      // Deprecated React Native signature: scrollTo(y, x, animated).
       scrollTo(options?: { x?: number; y?: number } | number, x?: number) {
-        if (typeof options === 'number') scrollTo(x, options);
-        else scrollTo(options?.x, options?.y);
+        pinToEnd(false);
+        if (typeof options === 'number') scrollTo(cellX(x), cellY(options));
+        else scrollTo(cellX(options?.x), cellY(options?.y));
       },
       scrollToEnd() {
+        pinToEnd(true);
         if (horizontal) scrollTo(live.current.maxX);
         else scrollTo(undefined, live.current.maxY);
       },
@@ -357,21 +522,25 @@ export function ScrollView(props: ScrollViewProps) {
           contentOffsetY={current.y}
         >
           <ScrollIntoViewContext.Provider value={scrollIntoView}>
-            <View
-              style={[
-                { flexShrink: 0, flexDirection: horizontal ? 'row' : 'column' },
-                contentContainerStyle,
-              ]}
-              boxRef={contentRef}
-              component="ScrollView contentContainerStyle"
-            >
-              {refreshing ? (
-                <View style={{ alignItems: 'center' }}>
-                  <ActivityIndicator color={refreshControl.props.tintColor} />
+            <ScrollDepthContext.Provider value={depth + 1}>
+              <FlexDirectionContext.Provider value={horizontal ? 'row' : 'column'}>
+                <View
+                  style={[
+                    { flexShrink: 0, flexDirection: horizontal ? 'row' : 'column' },
+                    contentContainerStyle,
+                  ]}
+                  boxRef={contentRef}
+                  component="ScrollView contentContainerStyle"
+                >
+                  {refreshing ? (
+                    <View style={{ alignItems: 'center' }}>
+                      <ActivityIndicator color={refreshControl.props.tintColor} />
+                    </View>
+                  ) : null}
+                  {children}
                 </View>
-              ) : null}
-              {children}
-            </View>
+              </FlexDirectionContext.Provider>
+            </ScrollDepthContext.Provider>
           </ScrollIntoViewContext.Provider>
         </Box>
         {showIndicator && measured ? (

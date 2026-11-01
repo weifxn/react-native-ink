@@ -18,7 +18,10 @@ export interface TouchableWithoutFeedbackProps extends AccessibilityProps {
   onPress?: ((event: GestureResponderEvent) => void) | null;
   onPressIn?: ((event: GestureResponderEvent) => void) | null;
   onPressOut?: ((event: GestureResponderEvent) => void) | null;
-  /** @remarks Not triggered from the keyboard. */
+  /**
+   * Called when the mouse button is held `delayLongPress` ms. @remarks Not triggered from the
+   * keyboard, nor on TouchableWithoutFeedback / TouchableNativeFeedback, which take no clicks.
+   */
   onLongPress?: ((event: GestureResponderEvent) => void) | null;
   onFocus?: ((event: unknown) => void) | null;
   onBlur?: ((event: unknown) => void) | null;
@@ -29,7 +32,7 @@ export interface TouchableWithoutFeedbackProps extends AccessibilityProps {
   autoFocus?: boolean;
   testID?: string;
   nativeID?: string;
-  /** @remarks Ignored in terminals. */
+  /** How long the mouse button must be held for `onLongPress` (default 500 ms). */
   delayLongPress?: number;
   /** @remarks Ignored in terminals. */
   delayPressIn?: number;
@@ -65,7 +68,6 @@ export interface TouchableHighlightProps extends TouchableWithoutFeedbackProps {
 }
 
 const touchableProps = ({
-  delayLongPress: _a,
   delayPressIn: _b,
   delayPressOut: _c,
   hitSlop: _d,

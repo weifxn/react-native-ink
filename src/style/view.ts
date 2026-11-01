@@ -1,6 +1,14 @@
+import {
+  UNIT_CELL,
+  isRowDirection,
+  toCells,
+  type Axis,
+  type CellSize,
+  type LengthKind,
+} from '../internal/units.js';
 import { warnOnce } from '../internal/warn.js';
 import { resolveBorders, stripUndefined } from './borders.js';
-import { resolveColor } from './colors.js';
+import { blendColor, resolveColor } from './colors.js';
 import { classifyUnhandled } from './support.js';
 import type { ViewStyle } from './types.js';
 
@@ -24,6 +32,12 @@ export interface ViewStyleOptions {
   skipKeys?: ReadonlySet<string>;
   /** Override Unicode detection for border glyphs (tests). */
   unicode?: boolean;
+  /** Layout units per cell (see `setCellSize`); lengths are converted to whole cells. */
+  cellSize?: CellSize;
+  /** The parent's flex direction: `flexBasis` is a length along the parent's main axis. */
+  parentDirection?: string;
+  /** The color behind the view (an Ink color), which translucent colors are mixed with. */
+  background?: string;
 }
 
 /** React Native's View defaults. Ink's Box defaults to `row` and `flexShrink: 1`. */
@@ -131,11 +145,19 @@ interface DimensionRules {
   auto?: 'keep' | 'default' | 'invalid';
 }
 
+/** How a number converts to cells: the cell size, the axis it runs along and its kind. */
+interface Scale {
+  cell: CellSize;
+  axis: Axis;
+  kind: LengthKind;
+}
+
 function dimension(
   component: string,
   key: string,
   raw: unknown,
   rules: DimensionRules = { percent: true },
+  scale?: Scale,
 ): number | string | undefined {
   const value = unwrap(raw);
   if (value === undefined || value === null) {
@@ -143,7 +165,7 @@ function dimension(
   }
   if (typeof value === 'number') {
     if (Number.isFinite(value)) {
-      return value;
+      return scale ? toCells(value, scale.cell, scale.axis, scale.kind) : value;
     }
   } else if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -178,11 +200,14 @@ const firstDefined = (style: Record<string, unknown>, keys: readonly string[]): 
   return undefined;
 };
 
+const SIDE_AXIS: Record<string, Axis> = { Top: 'y', Bottom: 'y', Left: 'x', Right: 'x' };
+
 function resolveSides(
   style: Record<string, unknown>,
   prefix: 'margin' | 'padding',
   component: string,
   rules: DimensionRules,
+  cell: CellSize,
 ): InkBoxProps {
   const p = prefix;
   const sides: Record<string, readonly string[]> = {
@@ -195,13 +220,26 @@ function resolveSides(
   for (const [side, keys] of Object.entries(sides)) {
     const key = keys.find((k) => style[k] !== undefined && style[k] !== null);
     if (key) {
-      result[`${p}${side}`] = dimension(component, key, style[key], rules);
+      result[`${p}${side}`] = dimension(component, key, style[key], rules, {
+        cell,
+        axis: SIDE_AXIS[side] ?? 'x',
+        kind: 'space',
+      });
     }
   }
   return result;
 }
 
-function parseAspectRatio(component: string, raw: unknown): number | undefined {
+/**
+ * A ratio of layout units, as a ratio of cells: a square of 16×16 units is 2 columns by 1 row
+ * when a cell is 8×16, so width/height in cells is twice the given ratio.
+ */
+function parseAspectRatio(component: string, raw: unknown, cell: CellSize): number | undefined {
+  const ratio = parseRatio(component, raw);
+  return ratio === undefined ? undefined : (ratio * cell.height) / cell.width;
+}
+
+function parseRatio(component: string, raw: unknown): number | undefined {
   const value = unwrap(raw);
   if (value === undefined || value === null) {
     return undefined;
@@ -223,13 +261,19 @@ function parseAspectRatio(component: string, raw: unknown): number | undefined {
   return undefined;
 }
 
-function gap(component: string, key: string, raw: unknown): number | undefined {
+function gap(
+  component: string,
+  key: string,
+  raw: unknown,
+  cell: CellSize = UNIT_CELL,
+  axis: Axis = 'x',
+): number | undefined {
   const value = unwrap(raw);
   if (value === undefined || value === null) {
     return undefined;
   }
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+    return toCells(value, cell, axis, 'space');
   }
   warnOnce(
     `${component}:${key}:invalid`,
@@ -240,7 +284,11 @@ function gap(component: string, key: string, raw: unknown): number | undefined {
 
 const TRANSLATE_STRING = /translate(X|Y)?\(\s*(-?[\d.]+)(?:px)?\s*(?:,\s*(-?[\d.]+)(?:px)?\s*)?\)/g;
 
-function resolveTranslate(component: string, raw: unknown): { x: number; y: number } {
+function resolveTranslate(
+  component: string,
+  raw: unknown,
+  cell: CellSize,
+): { x: number; y: number } {
   let x = 0;
   let y = 0;
   let ignored = false;
@@ -275,7 +323,7 @@ function resolveTranslate(component: string, raw: unknown): { x: number; y: numb
       `${component} style "transform": only translateX/translateY are supported in terminals; other transforms were ignored.`,
     );
   }
-  return { x: Math.round(x), y: Math.round(y) };
+  return { x: Math.round(x / cell.width), y: Math.round(y / cell.height) };
 }
 
 const shift = (
@@ -304,6 +352,7 @@ export function resolveViewStyle(
   options: ViewStyleOptions,
 ): ResolvedViewStyle {
   const { component, skipKeys } = options;
+  const cell = options.cellSize ?? UNIT_CELL;
   const box: InkBoxProps = { ...(options.defaults ?? VIEW_DEFAULTS) };
   if (!style) {
     return { box, dim: false, hidden: false };
@@ -358,22 +407,47 @@ export function resolveViewStyle(
     if (typeof value === 'number' && Number.isFinite(value)) box[key] = value;
   }
   if (s.flexBasis !== undefined) {
-    const basis = dimension(component, 'flexBasis', s.flexBasis);
+    const basis = dimension(component, 'flexBasis', s.flexBasis, undefined, {
+      cell,
+      axis: isRowDirection(options.parentDirection) ? 'x' : 'y',
+      kind: 'size',
+    });
     if (basis !== undefined) box.flexBasis = basis;
   }
 
   // Sizes.
   for (const key of ['width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight']) {
-    if (s[key] !== undefined) box[key] = dimension(component, key, s[key]);
+    if (s[key] !== undefined) {
+      box[key] = dimension(component, key, s[key], undefined, {
+        cell,
+        axis: key.toLowerCase().endsWith('width') ? 'x' : 'y',
+        kind: 'size',
+      });
+    }
   }
-  if (s.aspectRatio !== undefined) box.aspectRatio = parseAspectRatio(component, s.aspectRatio);
-  for (const key of ['gap', 'rowGap', 'columnGap']) {
-    if (s[key] !== undefined) box[key] = gap(component, key, s[key]);
+  if (s.aspectRatio !== undefined) {
+    box.aspectRatio = parseAspectRatio(component, s.aspectRatio, cell);
+  }
+  // `gap` sets both gutters. Rows are spaced vertically and columns horizontally, so when a cell
+  // isn't square the two convert differently and `gap` is split into both.
+  if (s.gap !== undefined) {
+    if (cell.width === cell.height) box.gap = gap(component, 'gap', s.gap, cell);
+    else {
+      box.rowGap = gap(component, 'gap', s.gap, cell, 'y');
+      box.columnGap = gap(component, 'gap', s.gap, cell, 'x');
+    }
+  }
+  if (s.rowGap !== undefined) box.rowGap = gap(component, 'rowGap', s.rowGap, cell, 'y');
+  if (s.columnGap !== undefined) {
+    box.columnGap = gap(component, 'columnGap', s.columnGap, cell, 'x');
   }
 
   // Margins, paddings and offsets.
-  Object.assign(box, resolveSides(s, 'margin', component, { percent: true, auto: 'keep' }));
-  Object.assign(box, resolveSides(s, 'padding', component, { percent: true, auto: 'invalid' }));
+  Object.assign(box, resolveSides(s, 'margin', component, { percent: true, auto: 'keep' }, cell));
+  Object.assign(
+    box,
+    resolveSides(s, 'padding', component, { percent: true, auto: 'invalid' }, cell),
+  );
   const insets: Record<string, readonly string[]> = {
     top: ['insetBlockStart', 'top', 'insetBlock', 'inset'],
     bottom: ['insetBlockEnd', 'bottom', 'insetBlock', 'inset'],
@@ -382,11 +456,17 @@ export function resolveViewStyle(
   };
   for (const [edge, keys] of Object.entries(insets)) {
     const raw = firstDefined(s, keys);
-    if (raw !== undefined) box[edge] = dimension(component, edge, raw);
+    if (raw !== undefined) {
+      box[edge] = dimension(component, edge, raw, undefined, {
+        cell,
+        axis: edge === 'top' || edge === 'bottom' ? 'y' : 'x',
+        kind: 'space',
+      });
+    }
   }
 
   if (s.transform !== undefined && s.transform !== null) {
-    const { x, y } = resolveTranslate(component, s.transform);
+    const { x, y } = resolveTranslate(component, s.transform, cell);
     if (x !== 0 || y !== 0) {
       if (box.position !== 'absolute') box.position = 'relative';
       shift(box, 'left', 'right', x, component);
@@ -422,11 +502,21 @@ export function resolveViewStyle(
         `${component} style "backgroundColor" has an invalid color (${String(s.backgroundColor)}) and was ignored.`,
       );
     } else if (resolved?.color) {
-      box.backgroundColor = resolved.color;
+      box.backgroundColor = blendColor(resolved, options.background);
     }
   }
 
-  Object.assign(box, resolveBorders(style, { component, dim, hidden, unicode: options.unicode }));
+  Object.assign(
+    box,
+    resolveBorders(style, {
+      component,
+      dim,
+      hidden,
+      unicode: options.unicode,
+      // A border is drawn over the view's own background.
+      background: (box.backgroundColor as string | undefined) ?? options.background,
+    }),
+  );
 
   return { box: stripUndefined(box), dim, hidden };
 }

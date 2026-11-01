@@ -1,5 +1,5 @@
 import { warnOnce } from '../internal/warn.js';
-import { resolveColor } from './colors.js';
+import { blendColor, resolveColor } from './colors.js';
 import type { TextStyle, ViewStyle } from './types.js';
 import { unwrap } from './view.js';
 
@@ -117,9 +117,14 @@ const colorProp = (component: string, key: string, raw: unknown) => {
 };
 
 /** Translates the text part of a flattened React Native style into Ink `<Text>` props. */
+/**
+ * `behind` is the color behind the text (an Ink color), which translucent text and background
+ * colors are mixed with.
+ */
 export function resolveTextStyle(
   style: TextStyle | undefined,
   component = 'Text',
+  behind?: string,
 ): ResolvedTextStyle {
   const result: ResolvedTextStyle = { ink: {}, dim: false, hidden: false };
   if (!style) return result;
@@ -133,16 +138,14 @@ export function resolveTextStyle(
     }
   }
 
+  const background = colorProp(component, 'backgroundColor', style.backgroundColor);
+  const backgroundColor = background ? blendColor(background, behind) : undefined;
+  if (backgroundColor) result.backgroundColor = backgroundColor;
   const color = colorProp(component, 'color', style.color);
   if (color) {
     if (color.alpha === 0) result.hidden = true;
-    else {
-      result.ink.color = color.color;
-      if (color.alpha <= 0.5) result.dim = true;
-    }
+    else result.ink.color = blendColor(color, backgroundColor ?? behind);
   }
-  const background = colorProp(component, 'backgroundColor', style.backgroundColor);
-  if (background?.color) result.backgroundColor = background.color;
 
   const weight = resolveFontWeight(style.fontWeight);
   if (weight === 'bold') result.ink.bold = true;

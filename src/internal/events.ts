@@ -82,16 +82,23 @@ export function createSyntheticEvent<T>(
   };
 }
 
-/** A keyboard-triggered press, shaped like React Native's touch event. */
-export function createPressEvent(type: string, target: unknown = null): GestureResponderEvent {
+/**
+ * A press from the keyboard (at 0, 0) or a click (at the pointer, in layout units), shaped like
+ * React Native's touch event.
+ */
+export function createPressEvent(
+  type: string,
+  target: unknown = null,
+  at?: { pageX: number; pageY: number; locationX: number; locationY: number },
+): GestureResponderEvent {
   const timestamp = Date.now();
   const touch: NativeTouchEvent = {
     changedTouches: [],
     identifier: '0',
-    locationX: 0,
-    locationY: 0,
-    pageX: 0,
-    pageY: 0,
+    locationX: at?.locationX ?? 0,
+    locationY: at?.locationY ?? 0,
+    pageX: at?.pageX ?? 0,
+    pageY: at?.pageY ?? 0,
     target: '',
     timestamp,
     touches: [],

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import {
+  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -23,6 +24,9 @@ import { isUnicodeSupported } from '../../internal/terminal.js';
 import { flattenStyle } from '../../style/flatten.js';
 import type { ColorValue, ImageStyle, StyleProp } from '../../style/types.js';
 import { VIEW_DEFAULTS, resolveViewStyle } from '../../style/view.js';
+import { withBorderBackground } from '../../style/colors.js';
+import { BackgroundColorContext } from '../../internal/contexts.js';
+import { FlexDirectionContext, getCellSize, toCells } from '../../internal/units.js';
 import { View } from '../View/index.js';
 import {
   isCached,
@@ -115,6 +119,8 @@ export function Image(props: ImageProps) {
   const uriSource = resolveSource(src ? { uri: src } : source);
   const uri = uriSource?.uri;
   const flat = (flattenStyle(style) ?? {}) as ImageStyle;
+  const parentDirection = useContext(FlexDirectionContext);
+  const inheritedBackground = useContext(BackgroundColorContext);
   const resizeMode =
     resizeModeProp ??
     flat.resizeMode ??
@@ -175,8 +181,16 @@ export function Image(props: ImageProps) {
       ((flat.left !== undefined && flat.right !== undefined) ||
         (flat.top !== undefined && flat.bottom !== undefined)));
 
-  let columns = positive(flat.width) ?? positive(widthProp) ?? positive(uriSource?.width);
-  let rows = positive(flat.height) ?? positive(heightProp) ?? positive(uriSource?.height);
+  // Explicit sizes are layout units; the bitmap's natural size (below) is already in cells.
+  const cellSize = getCellSize();
+  const asColumns = (value: number | undefined) =>
+    value === undefined ? undefined : toCells(value, cellSize, 'x', 'size');
+  const asRows = (value: number | undefined) =>
+    value === undefined ? undefined : toCells(value, cellSize, 'y', 'size');
+  let columns = asColumns(
+    positive(flat.width) ?? positive(widthProp) ?? positive(uriSource?.width),
+  );
+  let rows = asRows(positive(flat.height) ?? positive(heightProp) ?? positive(uriSource?.height));
   if (layoutSized) {
     columns = metrics.hasMeasured && metrics.clientWidth > 0 ? metrics.clientWidth : undefined;
     rows = metrics.hasMeasured && metrics.clientHeight > 0 ? metrics.clientHeight : undefined;
@@ -200,8 +214,17 @@ export function Image(props: ImageProps) {
     [bitmap, canDraw, columns, rows, resizeMode],
   );
 
-  const view = resolveViewStyle(flat, { component: 'Image', defaults: VIEW_DEFAULTS });
-  const box = { ...view.box, ...resolveAccessibility({ accessibilityLabel: alt, ...props }) };
+  const view = resolveViewStyle(flat, {
+    component: 'Image',
+    defaults: VIEW_DEFAULTS,
+    cellSize,
+    parentDirection,
+    background: inheritedBackground,
+  });
+  const box = withBorderBackground(
+    { ...view.box, ...resolveAccessibility({ accessibilityLabel: alt, ...props }) },
+    inheritedBackground,
+  );
   if (!layoutSized) {
     if (columns !== undefined) box.width = columns;
     if (rows !== undefined) box.height = rows;

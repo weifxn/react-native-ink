@@ -1,6 +1,8 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement, type ReactNode, type RefObject } from 'react';
 import type { DOMElement } from 'ink';
 import stringWidth from 'string-width';
+import wrapAnsi from 'wrap-ansi';
+import { paintBackground } from '../style/colors.js';
 
 /** Ink text wrap modes. */
 export type TextWrap =
@@ -15,10 +17,12 @@ export function textHost(
   wrap: TextWrap,
   transform: LineTransform | undefined,
   children: ReactNode,
+  ref?: RefObject<DOMElement | null>,
 ) {
   return createElement(
     'ink-text' as never,
     {
+      ref,
       style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row', textWrap: wrap },
       internal_transform: transform,
     } as never,
@@ -33,8 +37,12 @@ export const stripAnsi = (text: string): string => text.replace(ANSI, '');
 /** Visible width of a (possibly styled) line, ignoring trailing whitespace. */
 export const visibleWidth = (line: string): number => stringWidth(stripAnsi(line).trimEnd());
 
-/** Replaces a line with spaces of the same width (opacity 0 / transparent text). */
-export const blankLine: LineTransform = (line) => ' '.repeat(stringWidth(stripAnsi(line)));
+/**
+ * Replaces a line with spaces of the same width (opacity 0 / transparent text), painted with
+ * `background` so the text's space doesn't show the terminal's own background.
+ */
+export const blankLine = (line: string, _index = 0, background?: string): string =>
+  paintBackground(' '.repeat(stringWidth(stripAnsi(line))), background);
 
 // Yoga edges.
 const LEFT = 0;
@@ -53,14 +61,142 @@ export function innerWidth(node: DOMElement | null | undefined): number | undefi
   );
 }
 
-/** Pads a line so it is centered or right-aligned within `width` cells. */
+/** Pads a line so it is centered or right-aligned within `width` cells (padding painted with `background`). */
 export function alignLine(
   line: string,
   width: number | undefined,
   align: 'center' | 'right',
+  background?: string,
 ): string {
   if (width === undefined) return line;
   const free = Math.floor(width) - visibleWidth(line);
   if (free <= 0) return line;
-  return ' '.repeat(align === 'center' ? Math.floor(free / 2) : free) + line;
+  return (
+    paintBackground(' '.repeat(align === 'center' ? Math.floor(free / 2) : free), background) + line
+  );
+}
+
+/** The (styled) text Ink wraps for an ink-text node, built as Ink's own squashTextNodes does. */
+function squash(node: DOMElement): string {
+  let text = '';
+  for (const child of node.childNodes) {
+    if (child.nodeName === '#text') {
+      text += child.nodeValue;
+      continue;
+    }
+    if (child.isHidden) continue;
+    let part =
+      child.nodeName === 'ink-text' || child.nodeName === 'ink-virtual-text' ? squash(child) : '';
+    const transform = child.internal_transform;
+    if (part.length > 0 && typeof transform === 'function') {
+      part = part
+        .split('\n')
+        .map((line, index) => transform(line, index))
+        .join('\n');
+    }
+    text += part;
+  }
+  text = text.replaceAll('\r\n', '\n');
+  return text.includes('\t') ? wrapAnsi(text, Infinity, { trim: false }) : text;
+}
+
+interface Layout {
+  /** How many rows the text takes: its wrapped rows, or its lines when it isn't wrapped. */
+  count: number;
+  /** Each wrapped row's text, unstyled, and whether it carries on the paragraph before it. */
+  rows?: string[];
+  continues?: boolean[];
+}
+
+/** Recently wrapped texts, by mode, width and text, as Ink keeps its own. */
+const wrapCache = new Map<string, Required<Layout>>();
+const WRAP_CACHE_SIZE = 1024;
+
+/** How Ink lays out an ink-text node's text at `width`: wrapped (its rows) or not. */
+function layoutOf(node: DOMElement, width: number): Layout {
+  const styled = squash(node);
+  const lines = styled.split('\n');
+  const widest = Math.max(0, ...lines.map((line) => stringWidth(line)));
+  // As Ink: text that fits isn't wrapped, nor is text with no room at all.
+  if (widest <= width || width <= 0) return { count: lines.length };
+  const columns = Math.max(1, width);
+  const hard = node.style.textWrap === 'hard';
+  const plain = stripAnsi(styled);
+  const key = `${hard ? 'h' : 'w'}${columns}\u0000${plain}`;
+  const cached = wrapCache.get(key);
+  if (cached) return cached;
+  const options = hard ? { trim: false, hard: true, wordWrap: false } : { trim: false, hard: true };
+  const result: Required<Layout> = { count: 0, rows: [], continues: [] };
+  // wrap-ansi wraps each paragraph on its own, so this gives Ink's rows, unstyled.
+  for (const paragraph of plain.split('\n')) {
+    wrapAnsi(paragraph, columns, options)
+      .split('\n')
+      .forEach((row, index) => {
+        result.rows.push(row);
+        result.continues.push(index > 0);
+      });
+  }
+  result.count = result.rows.length;
+  if (wrapCache.size >= WRAP_CACHE_SIZE) wrapCache.delete(wrapCache.keys().next().value!);
+  wrapCache.set(key, result);
+  return result;
+}
+
+const CODE = String.raw`\u001B\[[0-?]*[ -/]*[@-~]|\u001B\][^\u0007\u001B]*(?:\u0007|\u001B\\)`;
+// Style codes (and links) at the start of a line, then a space.
+const LEADING_SPACE = new RegExp(`^((?:${CODE})*) `);
+// What ends a line after its last character: codes and spaces.
+const TRAILING = new RegExp(`(?:${CODE}| )*$`);
+const TRAILING_CODES = new RegExp(`((?:${CODE})*)$`);
+
+/** Ends a (styled) line with an ellipsis within `width` columns, styled like its last character. */
+function ellipsize(line: string, width: number): string {
+  // The line ends at its last word, not the space it may have broken at.
+  const end = TRAILING.exec(line)![0];
+  let text = line.slice(0, line.length - end.length) + end.replaceAll(' ', '');
+  if (stringWidth(text) > width - 1) {
+    // Cut to make room, keeping its styles closed (a hard wrap's first row does both).
+    text = wrapAnsi(text, Math.max(1, width - 1), {
+      hard: true,
+      trim: false,
+      wordWrap: false,
+    }).split('\n')[0]!;
+  }
+  return text.replace(TRAILING_CODES, '…$1');
+}
+
+/**
+ * A line transform for the ink-text in `nodeRef` that fixes up the rows Ink wraps its text
+ * into, as React Native lays text out:
+ *
+ * - A wrapped row starts at a word. Ink keeps every space when it wraps (so indentation
+ *   survives), which leaves the space a row broke at at the start of the next row whenever the
+ *   row before was exactly full. A paragraph's own first row keeps its leading spaces, and a
+ *   line that isn't the row expected (one clipped sideways) is left as it is.
+ * - With `ellipsizeAt`, that row (the last `numberOfLines` shows) ends with an ellipsis when the
+ *   text runs on past it.
+ */
+export function wrappedRows(
+  nodeRef: RefObject<DOMElement | null>,
+  ellipsizeAt?: number,
+): LineTransform {
+  // Ink calls this for every line of every frame. The text is the one this render produced
+  // (a new transform comes with each render), so it's read once per width: if a nested Text
+  // changed it since, rows stop matching and lines pass through untouched.
+  let known: { width: number; layout: Layout } | undefined;
+  return (line, index) => {
+    const node = nodeRef.current;
+    if (!node) return line;
+    const width = innerWidth(node) ?? 0;
+    if (known?.width !== width) known = { width, layout: layoutOf(node, width) };
+    const { layout } = known;
+    let result = line;
+    if (layout.continues?.[index] && stripAnsi(line) === layout.rows![index]) {
+      result = result.replace(LEADING_SPACE, '$1');
+    }
+    if (index === ellipsizeAt && layout.count > index + 1 && width >= 1) {
+      result = ellipsize(result, width);
+    }
+    return result;
+  };
 }
