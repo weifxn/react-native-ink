@@ -31,7 +31,7 @@ describe('View layout', () => {
         '│                            │',
         '│ 3 passed, 1 failed         │',
         '│ Some text that has to wrap │',
-        '│  here.                     │',
+        '│ here.                      │',
         '│                            │',
         '╰────────────────────────────╯',
       ),
@@ -173,7 +173,7 @@ describe('Text', () => {
         'middle t…own fox',
         'clip the quick b',
         'two lines of the',
-        ' quick brown fox',
+        'quick brown fox',
         'after',
       ),
     );
@@ -196,6 +196,28 @@ describe('Text', () => {
         '└──────────────────┘',
       ),
     );
+  });
+
+  it("starts a wrapped row at its next word, keeping a paragraph's own indentation", () => {
+    // Each first row is exactly full, so the space it broke at would start the next one.
+    expect(renderText(<Text>hello world foo bar</Text>, 11)).toBe(lines('hello world', 'foo bar'));
+    expect(
+      renderText(
+        <Text>
+          hello <Text style={{ fontWeight: 'bold' }}>world foo</Text> bar
+        </Text>,
+        11,
+      ),
+    ).toBe(lines('hello world', 'foo bar'));
+    expect(renderText(<Text>{'list:\n  indented item here'}</Text>, 10)).toBe(
+      lines('list:', '  indented', 'item here'),
+    );
+    expect(renderText(<Text>{'   padded start of text'}</Text>, 10)).toBe(
+      lines('   padded', 'start of', 'text'),
+    );
+    expect(
+      renderText(<Text style={{ textAlign: 'center', width: 13 }}>hello world foo bar</Text>, 40),
+    ).toBe(lines(' hello world', '   foo bar'));
   });
 
   it('applies textTransform to nested text', () => {

@@ -73,7 +73,8 @@
   "dependencies": {
     "@react-native/normalize-colors": "^0.88.1",
     "chalk": "^6.0.1",
-    "string-width": "^8.3.0"
+    "string-width": "^8.3.0",
+    "wrap-ansi": "^10.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

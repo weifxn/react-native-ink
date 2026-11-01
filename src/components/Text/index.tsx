@@ -27,6 +27,7 @@ import { usePointerTarget } from '../../internal/pointer.js';
 import {
   alignLine,
   blankLine,
+  dropBreakSpaces,
   innerWidth,
   textHost,
   type LineTransform,
@@ -133,6 +134,7 @@ function TextImpl(props: TextImplProps) {
   const inheritedBackground = useContext(BackgroundColorContext);
   const ownRef = useRef<DOMElement>(null);
   const boxRef = nodeRef ?? ownRef;
+  const hostRef = useRef<DOMElement>(null);
   useImperativeHandle(
     ref,
     () =>
@@ -207,12 +209,15 @@ function TextImpl(props: TextImplProps) {
         </Transform>
       );
     }
-  } else if (hidden || align) {
-    const lineTransform: LineTransform = (line) => {
-      const visible = hidden ? blankLine(line, 0, background) : line;
+  } else if (hidden || align || wrap === 'wrap' || wrap === 'hard') {
+    // Text that can wrap starts its rows at a word, as in React Native (see dropBreakSpaces).
+    const breaks = wrap === 'wrap' || wrap === 'hard' ? dropBreakSpaces(hostRef) : undefined;
+    const lineTransform: LineTransform = (line, index) => {
+      let visible = breaks ? breaks(line, index) : line;
+      if (hidden) visible = blankLine(visible, 0, background);
       return align ? alignLine(visible, innerWidth(boxRef.current), align, background) : visible;
     };
-    element = textHost(wrap, lineTransform, <InkText {...inkProps}>{content}</InkText>);
+    element = textHost(wrap, lineTransform, <InkText {...inkProps}>{content}</InkText>, hostRef);
   } else {
     element = (
       <InkText {...inkProps} wrap={wrap}>
