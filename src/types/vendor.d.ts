@@ -14,6 +14,10 @@ declare module 'jpeg-js' {
     data: Uint8Array,
     options?: { useTArray?: boolean; formatAsRGBA?: boolean },
   ): DecodedJpeg;
-  const jpeg: { decode: typeof decode };
+  export function encode(
+    image: { width: number; height: number; data: Uint8Array },
+    quality?: number,
+  ): { width: number; height: number; data: Uint8Array };
+  const jpeg: { decode: typeof decode; encode: typeof encode };
   export default jpeg;
 }

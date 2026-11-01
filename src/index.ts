@@ -73,6 +73,15 @@ export type { ScrollViewProps, ScrollViewInstance, NativeScrollEvent } from './c
 export { FlatList, VirtualizedList, SectionList, VirtualizedSectionList } from './components/Lists/index.js';
 export { Modal } from './components/Modal/index.js';
 export type { ModalProps } from './components/Modal/index.js';
+export { Image, ImageBackground } from './components/Image/index.js';
+export type {
+  ImageProps,
+  ImageBackgroundProps,
+  ImageSourcePropType,
+  ImageURISource,
+  ImageLoadEvent,
+  ImageErrorEvent,
+} from './components/Image/index.js';
 export type {
   FlatListProps,
   FlatListInstance,
@@ -118,6 +127,9 @@ export { Linking } from './apis/Linking.js';
 export { Alert, ActionSheetIOS, ToastAndroid } from './apis/dialogs.js';
 export type { AlertButton, AlertOptions, AlertType, ActionSheetIOSOptions } from './apis/dialogs.js';
 export { BackHandler } from './apis/BackHandler.js';
+export { Animated, useAnimatedValue, useAnimatedValueXY, useAnimatedColor } from './apis/Animated/index.js';
+export { Easing } from './apis/Easing.js';
+export type { EasingFunction } from './apis/Easing.js';
 export { AccessibilityInfo } from './apis/AccessibilityInfo.js';
 export {
   I18nManager,
