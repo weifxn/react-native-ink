@@ -240,5 +240,7 @@ export type { HostInstance, NativeMethods } from './internal/nativeMethods.js';
 
 // Terminal extensions
 export { render, renderToString } from './render.js';
+export { setCellSize, getCellSize } from './internal/units.js';
+export type { CellSize } from './internal/units.js';
 export type { Instance, RenderOptions, RenderToStringOptions } from './render.js';
 export * from './terminal/index.js';

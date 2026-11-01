@@ -1,4 +1,5 @@
 import type { DOMElement } from 'ink';
+import { frameFromCells, getCellSize } from './units.js';
 import { warnOnce } from './warn.js';
 
 export type MeasureOnSuccessCallback = (
@@ -46,18 +47,29 @@ interface Frame {
   height: number;
 }
 
+/** The node's frame in layout units (cells times the cell size). */
 const frameOf = (node: DOMElement): Frame | undefined => {
   const yoga = node.yogaNode;
   if (!yoga) return undefined;
-  return {
-    x: yoga.getComputedLeft(),
-    y: yoga.getComputedTop(),
-    width: yoga.getComputedWidth(),
-    height: yoga.getComputedHeight(),
-  };
+  return frameFromCells(
+    {
+      x: yoga.getComputedLeft(),
+      y: yoga.getComputedTop(),
+      width: yoga.getComputedWidth(),
+      height: yoga.getComputedHeight(),
+    },
+    getCellSize(),
+  );
 };
 
-/** Position relative to the root of the Ink tree. */
+/** Position relative to the root of the Ink tree, in layout units. */
+const pagePosition = (node: DOMElement): { x: number; y: number } => {
+  const { x, y } = absolutePosition(node);
+  const cell = getCellSize();
+  return { x: x * cell.width, y: y * cell.height };
+};
+
+/** Position relative to the root of the Ink tree, in cells. */
 export function absolutePosition(node: DOMElement): { x: number; y: number } {
   let x = 0;
   let y = 0;
@@ -82,7 +94,7 @@ export function attachNativeMethods(
       queueMicrotask(() => {
         const frame = frameOf(node);
         if (!frame) return;
-        const page = absolutePosition(node);
+        const page = pagePosition(node);
         callback(frame.x, frame.y, frame.width, frame.height, page.x, page.y);
       });
     },
@@ -90,7 +102,7 @@ export function attachNativeMethods(
       queueMicrotask(() => {
         const frame = frameOf(node);
         if (!frame) return;
-        const page = absolutePosition(node);
+        const page = pagePosition(node);
         callback(page.x, page.y, frame.width, frame.height);
       });
     },
@@ -102,8 +114,8 @@ export function attachNativeMethods(
           onFail?.();
           return;
         }
-        const a = absolutePosition(node);
-        const b = absolutePosition(other);
+        const a = pagePosition(node);
+        const b = pagePosition(other);
         onSuccess(a.x - b.x, a.y - b.y, frame.width, frame.height);
       });
     },

@@ -39,12 +39,12 @@ const COMPONENTS: Array<[string, Status, string]> = [
   [
     'ScrollView',
     'supported',
-    'Keyboard scrolling, indicator, scrollTo/scrollToEnd, focused children scrolled into view, RefreshControl spinner',
+    'Keyboard scrolling (the page scrolls with nothing focused), pagingEnabled, onMomentumScrollEnd, indicator, scrollTo/scrollToEnd, focused children scrolled into view through nested ScrollViews, RefreshControl spinner',
   ],
   [
     'FlatList / SectionList / VirtualizedList / VirtualizedSectionList',
     'partial',
-    'All features except virtualization (every item renders)',
+    'Windowed (windowSize) when getItemLayout is given, else every item renders; paging keeps focus on the visible page',
   ],
   [
     'Modal',
@@ -75,7 +75,11 @@ const APIS: Array<[string, Status, string]> = [
   ['AppRegistry', 'supported', 'runApplication returns the Ink instance; getApplication for tests'],
   ['StyleSheet', 'supported', 'create, flatten, compose, absoluteFill, hairlineWidth (1)'],
   ['Platform', 'supported', "`OS === 'cli'`, select({ cli, default })"],
-  ['Dimensions / useWindowDimensions / PixelRatio', 'supported', 'Terminal size in cells; ratio 1'],
+  [
+    'Dimensions / useWindowDimensions / PixelRatio',
+    'supported',
+    'Terminal size in cells, or in layout units with setCellSize; ratio 1',
+  ],
   [
     'Animated / Easing',
     'supported',
@@ -89,7 +93,7 @@ const APIS: Array<[string, Status, string]> = [
   [
     'Appearance / useColorScheme / DynamicColorIOS',
     'partial',
-    'Detected from $COLORFGBG, or set with setColorScheme',
+    "Detected from $COLORFGBG ('unspecified' when unknown), or set with setColorScheme",
   ],
   ['AccessibilityInfo', 'partial', "isScreenReaderEnabled reflects Ink's screen-reader mode"],
   ['LogBox', 'partial', "Filters this library's warnings"],
@@ -173,7 +177,7 @@ const document = [
   'Every name exported by `react-native` 0.88 is exported here, so shared code always imports.',
   'Ignored style props are accepted and logged once in development (silence them with `LogBox.ignoreLogs`).',
   '',
-  'Units: 1 = one terminal cell (one column horizontally, one row vertically).',
+  'Units: 1 = one terminal cell (one column horizontally, one row vertically), unless `setCellSize` says how many layout units a cell is (for code shared with a React Native app, written in dp).',
   '',
   inventory('Components', COMPONENTS),
   '',

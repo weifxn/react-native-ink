@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, vi } from 'vitest';
 import { resetDialogs } from '../src/apis/dialogs.js';
+import { setCellSize } from '../src/internal/units.js';
 import { resetWarnings } from '../src/internal/warn.js';
 
 // Deterministic glyphs regardless of the machine running the tests.
@@ -13,4 +14,5 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  setCellSize(null);
 });

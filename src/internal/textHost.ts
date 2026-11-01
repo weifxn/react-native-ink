@@ -1,6 +1,7 @@
 import { createElement, type ReactNode } from 'react';
 import type { DOMElement } from 'ink';
 import stringWidth from 'string-width';
+import { paintBackground } from '../style/colors.js';
 
 /** Ink text wrap modes. */
 export type TextWrap =
@@ -33,8 +34,12 @@ export const stripAnsi = (text: string): string => text.replace(ANSI, '');
 /** Visible width of a (possibly styled) line, ignoring trailing whitespace. */
 export const visibleWidth = (line: string): number => stringWidth(stripAnsi(line).trimEnd());
 
-/** Replaces a line with spaces of the same width (opacity 0 / transparent text). */
-export const blankLine: LineTransform = (line) => ' '.repeat(stringWidth(stripAnsi(line)));
+/**
+ * Replaces a line with spaces of the same width (opacity 0 / transparent text), painted with
+ * `background` so the text's space doesn't show the terminal's own background.
+ */
+export const blankLine = (line: string, _index = 0, background?: string): string =>
+  paintBackground(' '.repeat(stringWidth(stripAnsi(line))), background);
 
 // Yoga edges.
 const LEFT = 0;
@@ -53,14 +58,17 @@ export function innerWidth(node: DOMElement | null | undefined): number | undefi
   );
 }
 
-/** Pads a line so it is centered or right-aligned within `width` cells. */
+/** Pads a line so it is centered or right-aligned within `width` cells (padding painted with `background`). */
 export function alignLine(
   line: string,
   width: number | undefined,
   align: 'center' | 'right',
+  background?: string,
 ): string {
   if (width === undefined) return line;
   const free = Math.floor(width) - visibleWidth(line);
   if (free <= 0) return line;
-  return ' '.repeat(align === 'center' ? Math.floor(free / 2) : free) + line;
+  return (
+    paintBackground(' '.repeat(align === 'center' ? Math.floor(free / 2) : free), background) + line
+  );
 }

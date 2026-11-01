@@ -1,9 +1,11 @@
 import {
   isValidElement,
   useCallback,
+  useContext,
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   type ComponentType,
   type ReactElement,
   type ReactNode,
@@ -20,6 +22,8 @@ import {
 } from '../ScrollView/index.js';
 import { RefreshControl } from '../simple.js';
 import { View } from '../View/index.js';
+import { fromCells, getCellSize } from '../../internal/units.js';
+import { FocusScopeContext } from '../../internal/contexts.js';
 
 export interface ViewToken<ItemT = any> {
   item: ItemT;
@@ -73,15 +77,22 @@ interface CommonListProps extends Omit<ScrollViewProps, 'ref' | 'children'> {
   onEndReachedThreshold?: number | null;
   refreshing?: boolean | null;
   onRefresh?: (() => void) | null;
-  /** @remarks Lists are not virtualized; every item renders. */
+  /** With `getItemLayout`: how many items render before the list has measured itself (default 10). */
   initialNumToRender?: number;
-  /** @remarks Ignored (no virtualization). */
+  /** @remarks Ignored: a windowed list renders its whole window at once. */
   maxToRenderPerBatch?: number;
-  /** @remarks Ignored (no virtualization). */
+  /**
+   * With `getItemLayout`: how many viewports of items render, centered on the visible one
+   * (default 21, as in React Native). Without it every item renders.
+   */
   windowSize?: number;
-  /** @remarks Ignored (no virtualization). */
+  /** @remarks Ignored (items outside the window aren't rendered at all). */
   removeClippedSubviews?: boolean;
-  /** @remarks Ignored. */
+  /**
+   * Item sizes known up front. A FlatList given this renders only the items within `windowSize`
+   * viewports (spacers stand in for the rest), and with `pagingEnabled` only the visible page's
+   * items take focus.
+   */
   getItemLayout?: (data: any, index: number) => { length: number; offset: number; index: number };
   /** @remarks Ignored. */
   onViewableItemsChanged?:
@@ -130,6 +141,8 @@ interface Row {
 interface ListApi {
   scrollToId(id: string, params?: ScrollToParams): void;
   scrollToOffset(offset: number): void;
+  /** The viewport's length along the scroll axis, in layout units (0 before layout). */
+  visibleLength(): number;
   scrollView(): ScrollViewInstance | null;
 }
 
@@ -137,8 +150,12 @@ interface ListBaseProps extends CommonListProps {
   rows: Row[];
   isEmpty: boolean;
   initialScrollId?: string;
+  /** Scrolled to once the list has measured itself, when there's no row to scroll to. */
+  initialScrollOffset?: number;
   methods: (api: ListApi) => object;
   listRef?: Ref<any>;
+  /** The visible span along the scroll axis, in layout units, whenever it changes. */
+  onViewport?: (offset: number, length: number) => void;
 }
 
 /** Shared list implementation: rows inside a ScrollView with addressable cells. */
@@ -147,8 +164,10 @@ function ListBase(props: ListBaseProps) {
     rows,
     isEmpty,
     initialScrollId,
+    initialScrollOffset,
     methods,
     listRef,
+    onViewport,
     ListHeaderComponent,
     ListHeaderComponentStyle,
     ListFooterComponent,
@@ -202,14 +221,27 @@ function ListBase(props: ListBaseProps) {
         const viewportSize = horizontal
           ? (viewport?.getComputedWidth() ?? 0)
           : (viewport?.getComputedHeight() ?? 0);
+        // Measured in cells; viewOffset and scrollTo are in layout units.
+        const cell = getCellSize();
+        const axis = horizontal ? 'x' : 'y';
         const position =
-          (horizontal ? x : y) -
-          (params.viewPosition ?? 0) * (viewportSize - cellSize) -
-          (params.viewOffset ?? 0);
+          fromCells(
+            (horizontal ? x : y) - (params.viewPosition ?? 0) * (viewportSize - cellSize),
+            cell,
+            axis,
+          ) - (params.viewOffset ?? 0);
         scroll.scrollTo(horizontal ? { x: position } : { y: position });
       },
       scrollToOffset(offset) {
         scrollRef.current?.scrollTo(horizontal ? { x: offset } : { y: offset });
+      },
+      visibleLength() {
+        const viewport = scrollRef.current?.getScrollableNode()?.yogaNode;
+        if (!viewport) return 0;
+        const cell = getCellSize();
+        return horizontal
+          ? fromCells(viewport.getComputedWidth(), cell, 'x')
+          : fromCells(viewport.getComputedHeight(), cell, 'y');
       },
       scrollView: () => scrollRef.current,
     }),
@@ -228,6 +260,9 @@ function ListBase(props: ListBaseProps) {
       const offset = horizontal ? contentOffset.x : contentOffset.y;
       const content = horizontal ? contentSize.width : contentSize.height;
       const visible = horizontal ? layoutMeasurement.width : layoutMeasurement.height;
+      // The first event comes before the initial scroll: window around where it's going.
+      const settling = !didInitialScroll.current && initialScrollOffset !== undefined;
+      onViewport?.(settling ? initialScrollOffset : offset, visible);
       const distanceFromEnd = content - offset - visible;
       stickToEnd.current = inverted ? distanceFromEnd <= 0 : false;
       const threshold = (onEndReachedThreshold ?? 0.5) * visible;
@@ -237,10 +272,21 @@ function ListBase(props: ListBaseProps) {
       }
       if (!didInitialScroll.current) {
         didInitialScroll.current = true;
-        if (initialScrollId !== undefined) api.scrollToId(initialScrollId);
+        if (initialScrollOffset !== undefined) api.scrollToOffset(initialScrollOffset);
+        else if (initialScrollId !== undefined) api.scrollToId(initialScrollId);
       }
     },
-    [onScroll, horizontal, inverted, onEndReached, onEndReachedThreshold, initialScrollId, api],
+    [
+      onScroll,
+      onViewport,
+      horizontal,
+      inverted,
+      onEndReached,
+      onEndReachedThreshold,
+      initialScrollId,
+      initialScrollOffset,
+      api,
+    ],
   );
 
   const handleContentSizeChange = useCallback(
@@ -312,10 +358,64 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
   const items = useMemo(() => (data ? Array.from(data) : []), [data]);
   const extract = keyExtractor ?? defaultKeyExtractor;
   const columns = Math.max(1, Math.floor(numColumns));
+  const {
+    getItemLayout,
+    windowSize = 21,
+    initialNumToRender = 10,
+    horizontal,
+    pagingEnabled,
+  } = rest;
+
+  // With item sizes known up front, render only a window of items around the visible span, as
+  // React Native does; spacers keep the content as long as the whole list.
+  const windowed = typeof getItemLayout === 'function' && columns === 1 && items.length > 0;
+  const [viewport, setViewport] = useState<{ offset: number; length: number } | null>(null);
+  const onViewport = useCallback((offset: number, length: number) => {
+    setViewport((previous) =>
+      previous && previous.offset === offset && previous.length === length
+        ? previous
+        : { offset, length },
+    );
+  }, []);
+  const layoutOf = (index: number) => getItemLayout!(items, index);
+  let first = 0;
+  let last = items.length - 1;
+  if (windowed) {
+    if (viewport && viewport.length > 0) {
+      const extra = (Math.max(1, windowSize) - 1) / 2;
+      const from = viewport.offset - extra * viewport.length;
+      const to = viewport.offset + viewport.length + extra * viewport.length;
+      first = firstIndexEndingAfter(items.length, layoutOf, from);
+      last = Math.max(first, firstIndexEndingAfter(items.length, layoutOf, to) - 1);
+      // `to` falls inside the item it lands on, which is partly visible: keep it.
+      if (last + 1 < items.length && layoutOf(last + 1).offset < to) last += 1;
+    } else {
+      first = Math.min(Math.max(0, initialScrollIndex ?? 0), items.length - 1);
+      last = Math.min(items.length - 1, first + Math.max(1, initialNumToRender) - 1);
+    }
+  }
+  // While paging, only the page in view takes focus (Tab doesn't wander into the next page).
+  const inScope = useContext(FocusScopeContext);
+  const onPage = (index: number) => {
+    if (!windowed || !pagingEnabled || !viewport) return true;
+    const { offset, length } = layoutOf(index);
+    return offset < viewport.offset + viewport.length && offset + length > viewport.offset;
+  };
+  const spacer = (key: string, length: number): Row => ({
+    key,
+    node: <View style={horizontal ? { width: length } : { height: length }} />,
+  });
 
   const rows: Row[] = [];
   const indexToId = (index: number) => `row:${Math.floor(index / columns)}`;
-  for (let start = 0; start < items.length; start += columns) {
+  if (windowed && first > 0) {
+    rows.push(spacer('__before', layoutOf(first).offset - layoutOf(0).offset));
+  }
+  for (
+    let start = windowed ? first : 0;
+    start <= (windowed ? last : items.length - 1);
+    start += columns
+  ) {
     const group = items.slice(start, start + columns);
     const cells = group.map((item, offset) => {
       const index = start + offset;
@@ -329,14 +429,22 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
       );
     });
     const key = group.map((item, offset) => extract(item, start + offset)).join('|');
+    const node =
+      columns > 1 ? (
+        <View style={[{ flexDirection: 'row' }, columnWrapperStyle]}>{cells}</View>
+      ) : (
+        cells[0]
+      );
     rows.push({
       key,
       id: indexToId(start),
       node:
-        columns > 1 ? (
-          <View style={[{ flexDirection: 'row' }, columnWrapperStyle]}>{cells}</View>
+        windowed && pagingEnabled ? (
+          <FocusScopeContext.Provider value={inScope && onPage(start)}>
+            {node}
+          </FocusScopeContext.Provider>
         ) : (
-          cells[0]
+          node
         ),
     });
     if (ItemSeparatorComponent && start + columns < items.length) {
@@ -347,10 +455,27 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
     }
   }
 
+  if (windowed && last < items.length - 1) {
+    const end = layoutOf(items.length - 1);
+    const lastShown = layoutOf(last);
+    rows.push(spacer('__after', end.offset + end.length - (lastShown.offset + lastShown.length)));
+  }
+
+  const latestLayout = useRef(getItemLayout);
+  latestLayout.current = getItemLayout;
   const methods = useCallback(
     (api: ListApi) => ({
-      scrollToIndex: ({ index, ...params }: { index: number } & ScrollToParams) =>
-        api.scrollToId(indexToId(index), params),
+      scrollToIndex: ({ index, ...params }: { index: number } & ScrollToParams) => {
+        const layout = latestLayout.current;
+        // A windowed list may not have rendered the row; its offset is known anyway.
+        if (layout && columns === 1) {
+          const { offset, length } = layout(items, index);
+          const visible = api.visibleLength();
+          api.scrollToOffset(
+            offset - (params.viewPosition ?? 0) * (visible - length) - (params.viewOffset ?? 0),
+          );
+        } else api.scrollToId(indexToId(index), params);
+      },
       scrollToItem: ({ item, ...params }: { item: ItemT } & ScrollToParams) => {
         const index = items.indexOf(item);
         if (index !== -1) api.scrollToId(indexToId(index), params);
@@ -370,10 +495,36 @@ export function FlatList<ItemT>(props: FlatListProps<ItemT>) {
       rows={rows}
       isEmpty={items.length === 0}
       initialScrollId={initialScrollIndex != null ? indexToId(initialScrollIndex) : undefined}
+      initialScrollOffset={
+        windowed && initialScrollIndex != null
+          ? layoutOf(Math.min(initialScrollIndex, items.length - 1)).offset
+          : undefined
+      }
       methods={methods}
       listRef={ref}
+      onViewport={windowed ? onViewport : undefined}
     />
   );
+}
+
+/**
+ * The first item that ends after `position` (binary search: item offsets only grow), or
+ * `count` when none does.
+ */
+function firstIndexEndingAfter(
+  count: number,
+  layoutOf: (index: number) => { offset: number; length: number },
+  position: number,
+): number {
+  let low = 0;
+  let high = count;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    const { offset, length } = layoutOf(middle);
+    if (offset + length > position) high = middle;
+    else low = middle + 1;
+  }
+  return low;
 }
 
 export interface VirtualizedListProps<ItemT> extends Omit<

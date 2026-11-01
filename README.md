@@ -87,18 +87,19 @@ function Todo() {
 }
 ```
 
-| Key                                              | Does                                                                         |
-| ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| Tab / Shift+Tab                                  | Move focus between inputs, pressables, switches and scroll views             |
-| Enter / Space                                    | Press the focused Pressable, Touchable, Button or Switch                     |
-| Esc                                              | Clear focus; close the top Modal (`onRequestClose`); otherwise `BackHandler` |
-| ←/→, Home/End, Ctrl+A/E/U/K/W, Backspace, Delete | Edit text in a focused TextInput; ↑/↓ in multiline ones                      |
-| ↑/↓, PgUp/PgDn, Home/End                         | Scroll a focused ScrollView or list                                          |
-| Ctrl+C                                           | Exit                                                                         |
+| Key                                              | Does                                                                            |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Tab / Shift+Tab                                  | Move focus between inputs, pressables, switches and scroll views, in tree order |
+| Enter / Space                                    | Press the focused Pressable, Touchable, Button or Switch                        |
+| Esc                                              | Clear focus; close the top Modal (`onRequestClose`); otherwise `BackHandler`    |
+| ←/→, Home/End, Ctrl+A/E/U/K/W, Backspace, Delete | Edit text in a focused TextInput; ↑/↓ in multiline ones                         |
+| ↑/↓, PgUp/PgDn, Home/End                         | Scroll a focused ScrollView or list; with nothing focused, scroll the page      |
+| ←/→                                              | Scroll a focused horizontal ScrollView (a page at a time with `pagingEnabled`)  |
+| Ctrl+C                                           | Exit                                                                            |
 
 ## How React Native maps to a terminal
 
-- **Units are cells.** `width: 20` is 20 columns and `height: 3` is 3 rows. Cells are about twice as tall as they are wide.
+- **Units are cells.** `width: 20` is 20 columns and `height: 3` is 3 rows. Cells are about twice as tall as they are wide. Code written in dp for a phone sets a cell size instead (see [below](#sharing-code-with-a-react-native-app)).
 - **Layout is React Native's Yoga.** Views stack in a column with `flexShrink: 0`. `flex: 1` grows from a zero basis. Percentages and `margin: 'auto'` work.
 - **Colors.** `'red'`, `'green'` and the other ANSI names use the terminal's own palette; every other CSS color is exact truecolor (downsampled automatically). `PlatformColor('redBright')` names palette colors directly.
 - **Text.** Bold, italic, underline, strikethrough, `textTransform`, `textAlign` and `numberOfLines` with ellipsis all work. Light font weights and `opacity < 1` render dim. Font sizes and families are ignored.
@@ -118,11 +119,35 @@ To share components with a React Native app, keep `import … from 'react-native
 
 See [`examples/shared-code`](examples/shared-code).
 
+## Sharing code with a React Native app
+
+A phone app's styles are in dp: `padding: 16` would be 16 cells. Tell the library how many layout units a cell is, before the app renders (and before code that reads `Dimensions` at load time runs):
+
+```ts
+import { setCellSize } from '@weifxn/react-native-ink';
+
+setCellSize({ width: 8, height: 20 }); // one cell ≈ 8×20 dp
+
+const { App } = await import('./App.js');
+```
+
+Lengths in styles then become whole cells along their own axis (`padding: 16` is 2 columns and 1 row; `gap` is split into a row and a column gap; a positive size never rounds away to nothing), and everything the app reads back is in its units again: `Dimensions`, `useWindowDimensions`, `onLayout`, `measure*`, scroll offsets and `scrollTo`. The app's breakpoints keep working: a 160-column terminal is 1280 dp wide. Borders stay one cell thick, and the library's own dialogs stay in cells.
+
+Keyboard behavior that makes touch screens usable from a keyboard, with no app changes:
+
+- **The page scrolls** with ↑/↓, PgUp/PgDn and Home/End when nothing is focused: the outermost vertical ScrollView, as a browser scrolls its page.
+- **Tab follows the screen**, not the order components mounted, so a card that appears once its data loads takes its place in the order.
+- **A focused item is scrolled into view** by every ScrollView around it (a day in a pager in a page).
+- **Pagers page:** a focused horizontal ScrollView or FlatList with `pagingEnabled` moves a page per ←/→ and fires `onScrollEndDrag` and `onMomentumScrollEnd`; only the visible page's items take focus.
+
+`useColorScheme()` returns `'unspecified'` when the terminal doesn't report its background, as React Native's types promise, never `null`.
+
 ## Terminal extensions
 
 These Ink APIs are re-exported, so you never need to import `ink` directly:
 
 - **Rendering:** `render(element, options)` and `renderToString(element, { columns })`. `render` adds the app root that powers Modal, Alert, BackHandler and Keyboard.
+- **Units:** `setCellSize({ width, height })` and `getCellSize()` (see above).
 - **Hooks:** `useInput`, `usePaste`, `useApp`, `useFocus`, `useFocusManager`, `useStdout`, `useStdin`, `useStderr`, `useAnimation`, `useBoxMetrics`, `useWindowSize`, `useCursor`, `useIsScreenReaderEnabled`
 - **Components:** `Static` (permanent output above the UI), `Newline`, `Spacer`, `Transform`
 
@@ -161,7 +186,7 @@ npm run example -- shared-code        # imports from 'react-native'
 
 ## Limitations
 
-- **Lists aren't virtualized:** every item of a FlatList or SectionList renders.
+- **Lists are windowed only with `getItemLayout`:** a FlatList given item sizes renders `windowSize` viewports of items; otherwise, and for SectionList, every item renders.
 - **Modal context:** modal content renders at the app root, so React context from the Modal's ancestors doesn't reach it. Provide it with `AppRegistry.setWrapperComponentProvider`.
 - **No mouse or long press:** input is keyboard only.
 - **View inside Text:** a `<View>` nested in `<Text>` renders its children inline.

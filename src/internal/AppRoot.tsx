@@ -28,6 +28,7 @@ import {
   type ModalLayer,
 } from './modalHost.js';
 import { registerRoot } from './root.js';
+import { pageScroller, type ScrollAction } from './scrollers.js';
 import { useTerminalSize } from './useTerminalSize.js';
 
 export interface AppRootProps {
@@ -99,6 +100,29 @@ export function AppRoot({ children, rootTag = 0, outlet = true }: AppRootProps) 
       if (key.escape && focusedBeforeInput.current === undefined) dispatchBackPress();
     },
     { isActive: backHandlersActive && layers.length === 0 && isRawModeSupported },
+  );
+
+  // With nothing focused, the arrow and page keys scroll the page: the outermost vertical
+  // ScrollView (one inside an open modal, when there is one), as in a browser.
+  useInput(
+    (_input, key) => {
+      if (focusedBeforeInput.current !== undefined) return;
+      const action: ScrollAction | undefined = key.upArrow
+        ? 'up'
+        : key.downArrow
+          ? 'down'
+          : key.pageUp
+            ? 'pageUp'
+            : key.pageDown
+              ? 'pageDown'
+              : key.home
+                ? 'home'
+                : key.end
+                  ? 'end'
+                  : undefined;
+      if (action) pageScroller()?.scroll(action);
+    },
+    { isActive: isRawModeSupported },
   );
 
   return (

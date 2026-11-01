@@ -1,4 +1,5 @@
 import normalizeColor from '@react-native/normalize-colors';
+import chalk from 'chalk';
 import type { ColorValue, OpaqueColorValue } from './types.js';
 
 /** The 8 ANSI colors (plus gray): rendered with the terminal's own palette. */
@@ -114,4 +115,32 @@ export function processColor(
     return null;
   }
   return ((int << 24) | (int >>> 8)) >>> 0;
+}
+
+/**
+ * Gives `text` a background in a color Ink accepts (`'#rrggbb'`, a palette name such as
+ * `'redBright'`, `'ansi256(n)'`). Anything else is left unpainted, as Ink leaves it.
+ */
+export function paintBackground(text: string, color: string | undefined): string {
+  if (!color || text === '') return text;
+  const ansi256 = ANSI256.exec(color);
+  if (ansi256) return chalk.bgAnsi256(Number(ansi256[1]))(text);
+  if (/^#[\da-f]{6}$/i.test(color)) return chalk.bgHex(color)(text);
+  const name = `bg${color[0]!.toUpperCase()}${color.slice(1)}`;
+  const style = (chalk as unknown as Record<string, unknown>)[name];
+  return typeof style === 'function' ? (style as (value: string) => string)(text) : text;
+}
+
+/**
+ * Draws a box's border glyphs on its background — the box's own, else the one behind it — as
+ * React Native paints a view's background under its border. Ink would leave them on the
+ * terminal's default background.
+ */
+export function withBorderBackground<T extends Record<string, unknown>>(
+  box: T,
+  inherited: string | undefined,
+): T {
+  if (!box.borderStyle || box.borderBackgroundColor !== undefined) return box;
+  const background = (box.backgroundColor as string | undefined) ?? inherited;
+  return background ? { ...box, borderBackgroundColor: background } : box;
 }

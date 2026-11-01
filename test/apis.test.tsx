@@ -154,6 +154,15 @@ describe('Appearance', () => {
     expect(detectColorScheme({})).toBeNull();
   });
 
+  it("is 'unspecified', never null, when the terminal doesn't say", () => {
+    vi.stubEnv('COLORFGBG', '');
+    try {
+      expect(Appearance.getColorScheme()).toBe('unspecified');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('can be overridden and notifies listeners', () => {
     const listener = vi.fn();
     const subscription = Appearance.addChangeListener(listener);

@@ -29,6 +29,21 @@ First release of the rebuild on Ink 8. The 2019 prototype is still in git histor
 - Every other `react-native` 0.88 export, as a safe stub.
 - Terminal extensions re-exported from Ink: `render`, `renderToString`, `useInput`, `useFocus`, `Static` and more.
 
+### Sharing code with a React Native app
+
+- `setCellSize({ width, height })` / `getCellSize()`: style lengths written in dp become whole cells along their own axis, and `Dimensions`, `useWindowDimensions`, `onLayout`, `measure*` and scroll offsets come back in dp. 1×1 (the default) keeps everything as before.
+- With nothing focused, ↑/↓, PgUp/PgDn and Home/End scroll the page (the outermost vertical ScrollView).
+- Tab follows the tree, not mount order: a focusable that mounts late (after its data loaded) takes its place, and keeps focus while the order is restored.
+- A focused item is scrolled into view by every enclosing ScrollView, not only the nearest.
+- `pagingEnabled`: ←/→ (↑/↓ vertically) move a page and land on page boundaries; keyboard scrolls fire `onScrollEndDrag` and `onMomentumScrollEnd`.
+- FlatList renders only `windowSize` viewports of items when given `getItemLayout` (`initialNumToRender` before it has measured), scrolls to unrendered indexes, and with `pagingEnabled` keeps focus on the visible page.
+
+### Fixes
+
+- Border glyphs are drawn on the box's background (or the one behind it), as React Native paints a view's background under its border, instead of showing the terminal's own background through them; so are the padding of centered and right-aligned text and the blank space of transparent text.
+- A View no longer remounts its content when its inherited text state changes — focus turning a pressable's text inverse used to swap the element at its root, which reset the state of everything inside.
+- `useColorScheme()` / `Appearance.getColorScheme()` return `'unspecified'` when the terminal doesn't report its background, as React Native's types promise, instead of `null`.
+
 ### Tooling
 
 - TypeScript (strict), Vitest, ESLint and Prettier.

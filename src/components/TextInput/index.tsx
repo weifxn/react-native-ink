@@ -1,4 +1,5 @@
 import {
+  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -22,11 +23,13 @@ import { createSyntheticEvent, type NativeSyntheticEvent } from '../../internal/
 import { useFocusable } from '../../internal/focus.js';
 import { LayoutObserver } from '../../internal/LayoutObserver.js';
 import { attachNativeMethods, type HostInstance } from '../../internal/nativeMethods.js';
-import { resolveColor } from '../../style/colors.js';
+import { resolveColor, withBorderBackground } from '../../style/colors.js';
+import { BackgroundColorContext } from '../../internal/contexts.js';
 import { flattenStyle } from '../../style/flatten.js';
 import { resolveTextStyle, splitTextStyle } from '../../style/text.js';
 import type { ColorValue, StyleProp, TextStyle } from '../../style/types.js';
 import { resolveViewStyle } from '../../style/view.js';
+import { FlexDirectionContext, getCellSize } from '../../internal/units.js';
 import type { ViewProps } from '../View/index.js';
 import {
   backspace,
@@ -209,6 +212,8 @@ export function TextInput(props: TextInputProps) {
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
   const boxRef = useRef<DOMElement>(null);
+  const parentDirection = useContext(FlexDirectionContext);
+  const inheritedBackground = useContext(BackgroundColorContext);
   const instanceRef = useRef<TextInputInstance | null>(null);
   const scrollRef = useRef(0);
 
@@ -353,9 +358,15 @@ export function TextInput(props: TextInputProps) {
   // Styles: text props go to the text, layout props to the surrounding box.
   const { text: textStyle, layout } = splitTextStyle(flattenStyle(style));
   const resolved = resolveTextStyle(textStyle, 'TextInput');
-  const view = resolveViewStyle(layout, { component: 'TextInput', defaults: INPUT_BOX_DEFAULTS });
-  const box = { ...view.box, ...resolveAccessibility({ accessibilityRole: 'textbox', ...props }) };
+  const view = resolveViewStyle(layout, {
+    component: 'TextInput',
+    defaults: INPUT_BOX_DEFAULTS,
+    cellSize: getCellSize(),
+    parentDirection,
+  });
+  let box = { ...view.box, ...resolveAccessibility({ accessibilityRole: 'textbox', ...props }) };
   if (resolved.backgroundColor) box.backgroundColor = resolved.backgroundColor;
+  box = withBorderBackground(box, inheritedBackground);
   if (multiline && numberOfLines) {
     box.minHeight =
       numberOfLines +

@@ -9,7 +9,11 @@ import {
 } from 'react';
 import { Box, Text as InkText, Transform, useInput, type DOMElement } from 'ink';
 import { resolveAccessibility, type AccessibilityProps } from '../../internal/accessibility.js';
-import { TextAncestorContext, TextInheritanceContext } from '../../internal/contexts.js';
+import {
+  BackgroundColorContext,
+  TextAncestorContext,
+  TextInheritanceContext,
+} from '../../internal/contexts.js';
 import {
   createPressEvent,
   type GestureResponderEvent,
@@ -26,6 +30,7 @@ import {
   type LineTransform,
   type TextWrap,
 } from '../../internal/textHost.js';
+import { withBorderBackground } from '../../style/colors.js';
 import { flattenStyle } from '../../style/flatten.js';
 import {
   applyTextTransform,
@@ -35,6 +40,7 @@ import {
 } from '../../style/text.js';
 import type { StyleProp, TextStyle } from '../../style/types.js';
 import { resolveViewStyle } from '../../style/view.js';
+import { FlexDirectionContext, getCellSize } from '../../internal/units.js';
 
 export interface TextProps extends AccessibilityProps {
   children?: ReactNode;
@@ -115,6 +121,8 @@ function TextImpl(props: TextImplProps) {
     focusInverse,
   } = props;
   const inherited = useContext(TextInheritanceContext);
+  const parentDirection = useContext(FlexDirectionContext);
+  const inheritedBackground = useContext(BackgroundColorContext);
   const boxRef = useRef<DOMElement>(null);
   useImperativeHandle(
     ref,
@@ -177,13 +185,22 @@ function TextImpl(props: TextImplProps) {
   const content = transformChildren(children, transform);
 
   let element: ReactNode;
+  // What the text's blank and padding cells are painted with: its own background, else the one
+  // behind it.
+  const background = resolved.backgroundColor ?? inheritedBackground;
   if (nested) {
     element = <InkText {...inkProps}>{content}</InkText>;
-    if (resolved.hidden) element = <Transform transform={blankLine}>{element}</Transform>;
+    if (resolved.hidden) {
+      element = (
+        <Transform transform={(line, index) => blankLine(line, index, background)}>
+          {element}
+        </Transform>
+      );
+    }
   } else if (hidden || align) {
     const lineTransform: LineTransform = (line) => {
-      const visible = hidden ? blankLine(line, 0) : line;
-      return align ? alignLine(visible, innerWidth(boxRef.current), align) : visible;
+      const visible = hidden ? blankLine(line, 0, background) : line;
+      return align ? alignLine(visible, innerWidth(boxRef.current), align, background) : visible;
     };
     element = textHost(wrap, lineTransform, <InkText {...inkProps}>{content}</InkText>);
   } else {
@@ -204,11 +221,12 @@ function TextImpl(props: TextImplProps) {
 
   const view = resolveViewStyle(
     { ...layout, opacity: textStyle.opacity },
-    { component: 'Text', defaults: TEXT_BOX_DEFAULTS },
+    { component: 'Text', defaults: TEXT_BOX_DEFAULTS, cellSize: getCellSize(), parentDirection },
   );
-  const box = { ...view.box };
+  let box = { ...view.box };
   if (resolved.backgroundColor !== undefined && !hidden)
     box.backgroundColor = resolved.backgroundColor;
+  box = withBorderBackground(box, inheritedBackground);
   if (lines !== undefined && (lines > 1 || clip)) {
     box.maxHeight =
       lines +

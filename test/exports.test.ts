@@ -119,6 +119,8 @@ describe('export surface', () => {
       'useFocus',
       'Static',
       'Newline',
+      'setCellSize',
+      'getCellSize',
     ]) {
       expect((ReactNativeInk as Record<string, unknown>)[name], name).toBeDefined();
     }
