@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useWindowSize } from 'ink';
 import { currentStdout } from '../internal/root.js';
+import { sizeOfStream, useTerminalSize } from '../internal/useTerminalSize.js';
 import type { EmitterSubscription } from './EventEmitter.js';
 
 export interface ScaledSize {
@@ -15,18 +15,9 @@ export interface DimensionsChange {
   screen: ScaledSize;
 }
 
-const fallback = (value: string | undefined, defaultValue: number) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
-};
-
 function sizeOf(stream: NodeJS.WriteStream): ScaledSize {
-  return {
-    width: stream.columns || fallback(process.env.COLUMNS, 80),
-    height: stream.rows || fallback(process.env.LINES, 24),
-    scale: 1,
-    fontScale: 1,
-  };
+  const { columns, rows } = sizeOfStream(stream);
+  return { width: columns, height: rows, scale: 1, fontScale: 1 };
 }
 
 /** Terminal size in cells: `width` is columns, `height` is rows. */
@@ -52,7 +43,7 @@ export const Dimensions = {
 
 /** Terminal size in cells; re-renders when the terminal is resized. */
 export function useWindowDimensions(): ScaledSize {
-  const { columns, rows } = useWindowSize();
+  const { columns, rows } = useTerminalSize();
   return useMemo(() => ({ width: columns, height: rows, scale: 1, fontScale: 1 }), [columns, rows]);
 }
 

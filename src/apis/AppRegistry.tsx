@@ -1,6 +1,7 @@
-import type { ComponentType, ReactElement } from 'react';
+import { Fragment, type ComponentType, type ReactElement } from 'react';
 import { renderToString as inkRenderToString, type Instance, type RenderOptions } from 'ink';
 import { AppRoot } from '../internal/AppRoot.js';
+import { AppContent, ModalOutlet } from '../internal/modalHost.js';
 import { allocateRootTag, render } from '../render.js';
 
 export type ComponentProvider = () => ComponentType<any>;
@@ -35,20 +36,27 @@ const instances = new Map<number, { appKey: string; instance: Instance }>();
 let wrapperComponentProvider: WrapperComponentProvider | undefined;
 let instrumentationHook: ComponentProviderInstrumentationHook = (provider) => provider();
 
+/** The root element; modals render inside the wrapper so its providers reach them. */
 function buildElement(
   componentProvider: ComponentProvider,
   initialProps: Record<string, unknown>,
   rootTag: number,
 ): ReactElement {
   const Component = instrumentationHook(componentProvider);
-  const element = <Component {...initialProps} rootTag={rootTag} />;
-  const Wrapper = wrapperComponentProvider?.({ initialProps, rootTag });
-  return Wrapper ? <Wrapper {...initialProps}>{element}</Wrapper> : element;
+  const Wrapper = wrapperComponentProvider?.({ initialProps, rootTag }) ?? Fragment;
+  return (
+    <Wrapper {...(Wrapper === Fragment ? {} : initialProps)}>
+      <AppContent>
+        <Component {...initialProps} rootTag={rootTag} />
+      </AppContent>
+      <ModalOutlet />
+    </Wrapper>
+  );
 }
 
 function runComponent(appKey: string, componentProvider: ComponentProvider, parameters: AppParameters = {}) {
   const { initialProps = {}, rootTag = allocateRootTag(), ...renderOptions } = parameters;
-  const instance = render(buildElement(componentProvider, initialProps, rootTag), renderOptions, rootTag);
+  const instance = render(buildElement(componentProvider, initialProps, rootTag), renderOptions, rootTag, false);
   instances.set(rootTag, { appKey, instance });
   instance.waitUntilExit().then(
     () => instances.delete(rootTag),
@@ -131,7 +139,7 @@ export const AppRegistry = {
     for (const [rootTag, entry] of instances) {
       if (entry.appKey === appKey && (appParameters.rootTag === undefined || appParameters.rootTag === rootTag)) {
         entry.instance.rerender(
-          <AppRoot rootTag={rootTag}>
+          <AppRoot rootTag={rootTag} outlet={false}>
             {buildElement(registration.componentProvider, appParameters.initialProps ?? {}, rootTag)}
           </AppRoot>,
         );
@@ -156,7 +164,7 @@ export const AppRegistry = {
     if (!registration?.componentProvider) throw notRegistered(appKey);
     const rootTag = appParameters.rootTag ?? allocateRootTag();
     const element = (
-      <AppRoot rootTag={rootTag}>
+      <AppRoot rootTag={rootTag} outlet={false}>
         {buildElement(registration.componentProvider, appParameters.initialProps ?? {}, rootTag)}
       </AppRoot>
     );

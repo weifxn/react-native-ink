@@ -71,6 +71,8 @@ export type {
 export { ScrollView } from './components/ScrollView/index.js';
 export type { ScrollViewProps, ScrollViewInstance, NativeScrollEvent } from './components/ScrollView/index.js';
 export { FlatList, VirtualizedList, SectionList, VirtualizedSectionList } from './components/Lists/index.js';
+export { Modal } from './components/Modal/index.js';
+export type { ModalProps } from './components/Modal/index.js';
 export type {
   FlatListProps,
   FlatListInstance,
@@ -113,6 +115,10 @@ export {
 } from './apis/EventEmitter.js';
 export type { EmitterSubscription, EventSubscription } from './apis/EventEmitter.js';
 export { Linking } from './apis/Linking.js';
+export { Alert, ActionSheetIOS, ToastAndroid } from './apis/dialogs.js';
+export type { AlertButton, AlertOptions, AlertType, ActionSheetIOSOptions } from './apis/dialogs.js';
+export { BackHandler } from './apis/BackHandler.js';
+export { AccessibilityInfo } from './apis/AccessibilityInfo.js';
 export {
   I18nManager,
   AppState,
