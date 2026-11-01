@@ -1,114 +1,99 @@
 {
-  "name": "react-native-ink",
-  "version": "0.0.0",
-  "description": "React Native for CLIs",
-  "main": "build/index.js",
-  "scripts": {
-    "dev": "yarn ts-node --files ./Example-node.tsx",
-    "build": "tsc -d",
-    "clean": "rm -rf build/",
-    "coverage": "yarn codecov",
-    "prepack": "yarn build",
-    "prepublishOnly": "yarn build",
-    "pretest": "yarn build",
-    "test": "jest",
-    "sync": "yarn build && cp -a build/ example/node_modules/react-native-ink/build/"
-  },
-  "homepage": "https://github.com/evanbacon/react-native-ink#readme",
+  "name": "@weifxn/react-native-ink",
+  "version": "0.1.0",
+  "description": "React Native's components and APIs for terminal apps and CLIs, rendered with Ink.",
+  "keywords": [
+    "react-native",
+    "react",
+    "ink",
+    "cli",
+    "terminal",
+    "tui",
+    "console",
+    "command-line"
+  ],
+  "homepage": "https://github.com/weifxn/react-native-ink#readme",
   "bugs": {
-    "url": "https://github.com/evanbacon/react-native-ink/issues"
+    "url": "https://github.com/weifxn/react-native-ink/issues"
   },
-  "author": "Evan Bacon <bacon@expo.io> (https://github.com/evanbacon)",
   "repository": {
     "type": "git",
-    "url": "git://github.com/evanbacon/react-native-ink.git"
+    "url": "git+https://github.com/weifxn/react-native-ink.git"
   },
-  "contributors": [
-    "Evan Bacon <bacon@expo.io> (https://github.com/evanbacon)"
-  ],
   "license": "MIT",
-  "tags": [
-    "react"
+  "author": "weifxn (https://github.com/weifxn)",
+  "contributors": [
+    "Evan Bacon (https://github.com/evanbacon)"
   ],
-  "keywords": [
-    "react",
-    "react-component",
-    "react-native",
-    "react-native-cli",
-    "react-ink",
-    "expo",
-    "cli"
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
   ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "docs:compat": "tsx scripts/generate-compat.ts",
+    "example": "node scripts/example.mjs",
+    "prepack": "npm run build"
+  },
   "peerDependencies": {
-    "ink": "^2.5.0",
-    "react": "^16.10.1"
+    "ink": "^8.0.0",
+    "jpeg-js": ">=0.4.0",
+    "pngjs": ">=7.0.0",
+    "react": ">=19.3.0"
+  },
+  "peerDependenciesMeta": {
+    "jpeg-js": {
+      "optional": true
+    },
+    "pngjs": {
+      "optional": true
+    }
   },
   "dependencies": {
-    "@babel/cli": "^7.5.5",
-    "@babel/core": "^7.5.5",
-    "@babel/preset-env": "^7.5.5",
-    "@babel/preset-react": "^7.0.0",
-    "@babel/preset-typescript": "^7.3.3",
-    "@expo/babel-preset-cli": "^0.2.1",
-    "@types/ansi-escapes": "^4.0.0",
-    "@types/cli-cursor": "^3.0.1",
-    "@types/invariant": "^2.2.30",
-    "@types/is-ci": "^2.0.0",
-    "@types/lodash.throttle": "^4.1.6",
-    "@types/meow": "^5.0.0",
-    "@types/node": "^12.6.8",
-    "@types/react": "^16.8.23",
-    "@types/react-reconciler": "^0.18.0",
-    "@types/scheduler": "^0.16.1",
-    "@types/signal-exit": "^3.0.0",
-    "@types/slice-ansi": "^2.0.0",
-    "@types/wrap-ansi": "^3.0.0",
-    "@types/yoga-layout": "^1.9.1",
-    "@typescript-eslint/eslint-plugin": "^1.12.0",
-    "@typescript-eslint/parser": "^1.12.0",
-    "@zeit/ncc": "^0.20.4",
-    "ansi-align": "^3.0.0",
-    "arrify": "^2.0.1",
-    "auto-bind": "^2.1.1",
-    "camelcase": "^5.3.1",
-    "cli-boxes": "^2.2.0",
-    "cli-truncate": "^2.0.0",
-    "eslint": "^5.16.0",
-    "eslint-config-prettier": "^6.0.0",
-    "eslint-plugin-prettier": "^3.1.0",
-    "eslint-plugin-react": "^7.14.2",
-    "fbjs": "^1.0.0",
-    "ink-image": "^2.0.0",
-    "ink-text-input": "^3.2.1",
-    "invariant": "^2.2.4",
-    "is-ci": "^2.0.0",
-    "lodash.throttle": "^4.1.1",
-    "log-update": "^3.3.0",
-    "meow": "^5.0.0",
-    "nexe": "^3.3.2",
-    "normalize-css-color": "^1.0.2",
-    "prettier": "^1.18.2",
-    "react-native-web": "^0.11.7",
-    "react-reconciler": "^0.22.2",
-    "scheduler": "^0.16.2",
-    "signal-exit": "^3.0.2",
-    "slice-ansi": "^3.0.0",
-    "string-length": "^3.1.0",
-    "string-width": "^4.1.0",
-    "term-size": "^2.1.0",
-    "tslint": "^5.18.0",
-    "tslint-config-prettier": "^1.18.0",
-    "tslint-plugin-prettier": "^2.0.1",
-    "tslint-react": "^4.0.0",
-    "typescript": "^3.5.3",
-    "widest-line": "^3.1.0",
-    "yoga-layout-prebuilt": "^1.9.3"
+    "@react-native/normalize-colors": "^0.88.1",
+    "chalk": "^6.0.1",
+    "string-width": "^8.3.0"
   },
   "devDependencies": {
-    "expo-module-scripts": "^1.1.0",
-    "ink": "^2.5.0",
-    "jest-expo": "^34.1.0",
-    "react": "^16.10.1",
-    "ts-node": "^8.4.1"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "@types/pngjs": "^6.0.5",
+    "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "ink": "^8.0.0",
+    "ink-testing-library": "^4.0.0",
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0",
+    "prettier": "^3.9.10",
+    "react": "^19.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
   }
 }

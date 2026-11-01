@@ -1,6 +1,29 @@
 # react-native-ink: completion plan
 
-Status: proposal · 2026-11-01 · Companion document: [SPEC.md](./SPEC.md)
+Status: **implemented** (M0–M4) · 2026-11-01 · Companion document: [SPEC.md](./SPEC.md)
+
+## 0. Status
+
+All milestones are implemented on branch `claude/rebuild-on-ink8`. The recommended decisions were taken:
+
+- D1: built on Ink 8
+- D2: package name `@weifxn/react-native-ink`
+- D3: `Platform.OS = 'cli'`
+- D4: ANSI color names use the terminal palette
+- D5: `ink` is a peer dependency
+
+| Milestone         | Result                                                                                                                                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 reset          | Legacy fork removed; TypeScript 6, Vitest, ESLint/Prettier; CI on Linux, macOS and Windows; release workflow                                                                      |
+| M1 core           | Style engine, `View`, `Text`, `StyleSheet`, `AppRegistry`, `Platform`, `Dimensions`; all 96 `react-native` exports present                                                        |
+| M2 interaction    | Focus model, Pressable family, `Button`, `TextInput`, `Switch`, `ActivityIndicator`, `ScrollView`, lists                                                                          |
+| M3 fidelity       | `textAlign`, opacity, dashed/dotted borders, translate transforms, `Modal`, `Alert`, `ActionSheetIOS`, `ToastAndroid`, `BackHandler`, `Appearance`, `AccessibilityInfo`, `LogBox` |
+| M4                | `Animated` (JavaScript driver), `Easing`, `Image` / `ImageBackground`                                                                                                             |
+| Examples and docs | 6 runnable examples, README, generated `docs/compat.md`, CHANGELOG, CONTRIBUTING                                                                                                  |
+
+**Not done yet:** FlatList virtualization, mouse input, and publishing to npm (needs the owner's npm credentials). The legacy-code tag could not be pushed (the session's git proxy rejects tag pushes); the old code stays reachable at commit `8c66f1b` on `master`.
+
+The rest of this document is the original proposal, kept for reference.
 
 ## 1. Where the project stands
 
@@ -9,21 +32,21 @@ The repository is an early (October 2019) work-in-progress port of Ink v2 to a R
 **What's there**
 
 - A fork of Ink v2's internals (reconciler, DOM, output, instance, App) under `src/modules/Renderer`, `src/modules/Instance` and `src/exports/App`.
-- `View` renders a `div` host node. `Text` renders a host node plus a *string transformer* that draws borders, padding, margins, background and colors with chalk **after** layout.
+- `View` renders a `div` host node. `Text` renders a host node plus a _string transformer_ that draws borders, padding, margins, background and colors with chalk **after** layout.
 - Modules copied from react-native-web (`createElement`, `createDOMProps`, `normalizeNativeEvent`, `AccessibilityUtil`, prop-type validators). They are mostly commented out or unused.
 - `Image` and `TextInput` are re-exported from `ink-image` and `ink-text-input`. Those packages target Ink 2's own components, not this renderer.
 - Public exports: `AppRegistry`, `View`, `Text`, `Image`, `TextInput`. `StyleSheet` is a stub that warns. There is no `Platform`, `Dimensions` or any other RN API.
 
 **What I verified** (scratch copy, Node 22, original lockfile)
 
-| Check | Result |
-|---|---|
-| `yarn install --frozen-lockfile` (with `--ignore-scripts`) | OK |
-| `yarn build` (`tsc -d`) | **4 errors.** `AppRegistry` imports `../../Modules/Instance` with the wrong letter case. That only resolves on macOS's case-insensitive filesystem, so it fails on Linux and CI. The other 2 errors are unused variables. |
-| With the casing patched: `<Text>Hello</Text>` | Renders, but every `Text` adds a spurious blank line above itself |
-| `Example-node.tsx` | Broken layout. The nested `<Text>BRO</Text>` is drawn as its own bordered box overlapping the next line, with its top border clipped. The second line's nested "nested text" is not rendered at all. |
-| Tests | One placeholder: `it('does a thing', () => {})` |
-| CI | Node 10 and `actions/*@v1`. The `paths: ['*']` filter matches only root-level files, so changes under `src/` never trigger CI. |
+| Check                                                      | Result                                                                                                                                                                                                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn install --frozen-lockfile` (with `--ignore-scripts`) | OK                                                                                                                                                                                                                        |
+| `yarn build` (`tsc -d`)                                    | **4 errors.** `AppRegistry` imports `../../Modules/Instance` with the wrong letter case. That only resolves on macOS's case-insensitive filesystem, so it fails on Linux and CI. The other 2 errors are unused variables. |
+| With the casing patched: `<Text>Hello</Text>`              | Renders, but every `Text` adds a spurious blank line above itself                                                                                                                                                         |
+| `Example-node.tsx`                                         | Broken layout. The nested `<Text>BRO</Text>` is drawn as its own bordered box overlapping the next line, with its top border clipped. The second line's nested "nested text" is not rendered at all.                      |
+| Tests                                                      | One placeholder: `it('does a thing', () => {})`                                                                                                                                                                           |
+| CI                                                         | Node 10 and `actions/*@v1`. The `paths: ['*']` filter matches only root-level files, so changes under `src/` never trigger CI.                                                                                            |
 
 **Root cause.** Borders, padding, margins and background are produced as text inside a per-node transformer that runs after Yoga has laid everything out. Yoga never reserves space for them. Transformers are also inherited by nested text, so a parent's box gets drawn around its children. Fixing this means writing a new renderer. That is exactly what Ink did over its releases since v2: Ink 8 natively supports borders, backgrounds, absolute positioning, `gap`, overflow with scroll offsets, focus management, screen readers and a test harness.
 
@@ -75,14 +98,14 @@ middle: th…fox jumps
 
 ## 3. Decisions needed
 
-| # | Decision | Recommendation |
-|---|---|---|
-| D1 | Architecture | An API layer on Ink 8 (§2) |
-| D2 | npm name | Publish as `@weifxn/react-native-ink` now. Separately, ask the original author to transfer `react-native-ink`, since the placeholder holds no code. Rename if that happens. |
-| D3 | `Platform.OS` value | `'cli'`. That was the original intent (`"platforms": ["cli"]` in `example/app.json`), and it allows `*.cli.tsx` platform files. |
-| D4 | Named colors | `'red'`, `'green'` and the other 8 ANSI color names (plus gray) use the **terminal's own palette**, which respects user themes and 16-color terminals. Every other CSS color is exact (truecolor). |
-| D5 | How to depend on Ink | Make `ink` a **peer dependency** (`^8`), so the app, this library and any `ink-*` libraries share a single Ink instance |
-| D6 | First usable release (0.1) | Core rendering only (View, Text, StyleSheet, AppRegistry, Platform, Dimensions, PixelRatio), plus the full React Native export list with stubs. Interactive components come in 0.2. |
+| #   | Decision                   | Recommendation                                                                                                                                                                                     |
+| --- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Architecture               | An API layer on Ink 8 (§2)                                                                                                                                                                         |
+| D2  | npm name                   | Publish as `@weifxn/react-native-ink` now. Separately, ask the original author to transfer `react-native-ink`, since the placeholder holds no code. Rename if that happens.                        |
+| D3  | `Platform.OS` value        | `'cli'`. That was the original intent (`"platforms": ["cli"]` in `example/app.json`), and it allows `*.cli.tsx` platform files.                                                                    |
+| D4  | Named colors               | `'red'`, `'green'` and the other 8 ANSI color names (plus gray) use the **terminal's own palette**, which respects user themes and 16-color terminals. Every other CSS color is exact (truecolor). |
+| D5  | How to depend on Ink       | Make `ink` a **peer dependency** (`^8`), so the app, this library and any `ink-*` libraries share a single Ink instance                                                                            |
+| D6  | First usable release (0.1) | Core rendering only (View, Text, StyleSheet, AppRegistry, Platform, Dimensions, PixelRatio), plus the full React Native export list with stubs. Interactive components come in 0.2.                |
 
 ## 4. Milestones
 
@@ -156,11 +179,11 @@ Rough sizes: **S** = about a day or less, **M** = a few days, **L** = a week or 
 
 ## 6. Risks
 
-| Risk | Mitigation |
-|---|---|
-| An Ink major release changes props or behavior | Peer range `^8`; golden tests catch regressions; dependency-update bot (Renovate or Dependabot) |
-| Users expect exact React Native behavior | Explicit support table, warn-once for unsupported props, compatibility docs |
-| `textAlign` and multi-line truncation need the measured width | Build them on Ink's `useBoxMetrics` + `<Transform>`, covered by golden tests |
-| Keyboard input when stdin isn't a terminal (pipes, CI) | Input components check `isRawModeSupported` and go inert instead of throwing |
-| Windows terminal glyph and color differences | Windows in CI; ASCII fallbacks for borders and spinners |
-| npm name unavailable | The scoped name unblocks publishing today |
+| Risk                                                          | Mitigation                                                                                      |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| An Ink major release changes props or behavior                | Peer range `^8`; golden tests catch regressions; dependency-update bot (Renovate or Dependabot) |
+| Users expect exact React Native behavior                      | Explicit support table, warn-once for unsupported props, compatibility docs                     |
+| `textAlign` and multi-line truncation need the measured width | Build them on Ink's `useBoxMetrics` + `<Transform>`, covered by golden tests                    |
+| Keyboard input when stdin isn't a terminal (pipes, CI)        | Input components check `isRawModeSupported` and go inert instead of throwing                    |
+| Windows terminal glyph and color differences                  | Windows in CI; ASCII fallbacks for borders and spinners                                         |
+| npm name unavailable                                          | The scoped name unblocks publishing today                                                       |
