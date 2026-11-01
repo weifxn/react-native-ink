@@ -27,11 +27,11 @@ import { usePointerTarget } from '../../internal/pointer.js';
 import {
   alignLine,
   blankLine,
-  dropBreakSpaces,
   innerWidth,
   textHost,
   type LineTransform,
   type TextWrap,
+  wrappedRows,
 } from '../../internal/textHost.js';
 import { withBorderBackground } from '../../style/colors.js';
 import { flattenStyle } from '../../style/flatten.js';
@@ -210,8 +210,12 @@ function TextImpl(props: TextImplProps) {
       );
     }
   } else if (hidden || align || wrap === 'wrap' || wrap === 'hard') {
-    // Text that can wrap starts its rows at a word, as in React Native (see dropBreakSpaces).
-    const breaks = wrap === 'wrap' || wrap === 'hard' ? dropBreakSpaces(hostRef) : undefined;
+    // Wrapped rows start at a word, and the last numberOfLines shows ends with an ellipsis when
+    // the text runs on, as in React Native (see wrappedRows).
+    const breaks =
+      wrap === 'wrap' || wrap === 'hard'
+        ? wrappedRows(hostRef, lines !== undefined && lines > 1 && !clip ? lines - 1 : undefined)
+        : undefined;
     const lineTransform: LineTransform = (line, index) => {
       let visible = breaks ? breaks(line, index) : line;
       if (hidden) visible = blankLine(visible, 0, background);

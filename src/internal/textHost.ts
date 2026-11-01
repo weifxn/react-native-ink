@@ -100,22 +100,25 @@ function squash(node: DOMElement): string {
   return text.includes('\t') ? wrapAnsi(text, Infinity, { trim: false }) : text;
 }
 
-interface Rows {
-  /** Each row's text, unstyled, and whether it carries on a paragraph from the row before. */
-  rows: string[];
-  continues: boolean[];
+interface Layout {
+  /** How many rows the text takes: its wrapped rows, or its lines when it isn't wrapped. */
+  count: number;
+  /** Each wrapped row's text, unstyled, and whether it carries on the paragraph before it. */
+  rows?: string[];
+  continues?: boolean[];
 }
 
 /** Recently wrapped texts, by mode, width and text, as Ink keeps its own. */
-const wrapCache = new Map<string, Rows>();
+const wrapCache = new Map<string, Required<Layout>>();
 const WRAP_CACHE_SIZE = 1024;
 
-/** The rows Ink wraps an ink-text node's text into at `width`, or undefined when it doesn't. */
-function rowsOf(node: DOMElement, width: number): Rows | undefined {
+/** How Ink lays out an ink-text node's text at `width`: wrapped (its rows) or not. */
+function layoutOf(node: DOMElement, width: number): Layout {
   const styled = squash(node);
-  const widest = Math.max(0, ...styled.split('\n').map((line) => stringWidth(line)));
+  const lines = styled.split('\n');
+  const widest = Math.max(0, ...lines.map((line) => stringWidth(line)));
   // As Ink: text that fits isn't wrapped, nor is text with no room at all.
-  if (widest <= width || width <= 0) return undefined;
+  if (widest <= width || width <= 0) return { count: lines.length };
   const columns = Math.max(1, width);
   const hard = node.style.textWrap === 'hard';
   const plain = stripAnsi(styled);
@@ -123,7 +126,7 @@ function rowsOf(node: DOMElement, width: number): Rows | undefined {
   const cached = wrapCache.get(key);
   if (cached) return cached;
   const options = hard ? { trim: false, hard: true, wordWrap: false } : { trim: false, hard: true };
-  const result: Rows = { rows: [], continues: [] };
+  const result: Required<Layout> = { count: 0, rows: [], continues: [] };
   // wrap-ansi wraps each paragraph on its own, so this gives Ink's rows, unstyled.
   for (const paragraph of plain.split('\n')) {
     wrapAnsi(paragraph, columns, options)
@@ -133,34 +136,67 @@ function rowsOf(node: DOMElement, width: number): Rows | undefined {
         result.continues.push(index > 0);
       });
   }
+  result.count = result.rows.length;
   if (wrapCache.size >= WRAP_CACHE_SIZE) wrapCache.delete(wrapCache.keys().next().value!);
   wrapCache.set(key, result);
   return result;
 }
 
+const CODE = String.raw`\u001B\[[0-?]*[ -/]*[@-~]|\u001B\][^\u0007\u001B]*(?:\u0007|\u001B\\)`;
 // Style codes (and links) at the start of a line, then a space.
-const LEADING_SPACE =
-  /^((?:\u001B\[[0-?]*[ -/]*[@-~]|\u001B\][^\u0007\u001B]*(?:\u0007|\u001B\\))*) /;
+const LEADING_SPACE = new RegExp(`^((?:${CODE})*) `);
+// What ends a line after its last character: codes and spaces.
+const TRAILING = new RegExp(`(?:${CODE}| )*$`);
+const TRAILING_CODES = new RegExp(`((?:${CODE})*)$`);
+
+/** Ends a (styled) line with an ellipsis within `width` columns, styled like its last character. */
+function ellipsize(line: string, width: number): string {
+  // The line ends at its last word, not the space it may have broken at.
+  const end = TRAILING.exec(line)![0];
+  let text = line.slice(0, line.length - end.length) + end.replaceAll(' ', '');
+  if (stringWidth(text) > width - 1) {
+    // Cut to make room, keeping its styles closed (a hard wrap's first row does both).
+    text = wrapAnsi(text, Math.max(1, width - 1), {
+      hard: true,
+      trim: false,
+      wordWrap: false,
+    }).split('\n')[0]!;
+  }
+  return text.replace(TRAILING_CODES, '…$1');
+}
 
 /**
- * A line transform for the ink-text in `nodeRef` that drops the space a wrapped line broke at.
- * Ink keeps every space when it wraps (so indentation survives), which leaves the break's
- * space at the start of the next row whenever the row before was exactly full; React Native
- * starts a wrapped row at its next word. A paragraph's own first row keeps its leading spaces,
- * and a line that isn't the row expected (a clipped one) is left as it is.
+ * A line transform for the ink-text in `nodeRef` that fixes up the rows Ink wraps its text
+ * into, as React Native lays text out:
+ *
+ * - A wrapped row starts at a word. Ink keeps every space when it wraps (so indentation
+ *   survives), which leaves the space a row broke at at the start of the next row whenever the
+ *   row before was exactly full. A paragraph's own first row keeps its leading spaces, and a
+ *   line that isn't the row expected (one clipped sideways) is left as it is.
+ * - With `ellipsizeAt`, that row (the last `numberOfLines` shows) ends with an ellipsis when the
+ *   text runs on past it.
  */
-export function dropBreakSpaces(nodeRef: RefObject<DOMElement | null>): LineTransform {
+export function wrappedRows(
+  nodeRef: RefObject<DOMElement | null>,
+  ellipsizeAt?: number,
+): LineTransform {
   // Ink calls this for every line of every frame. The text is the one this render produced
   // (a new transform comes with each render), so it's read once per width: if a nested Text
   // changed it since, rows stop matching and lines pass through untouched.
-  let known: { width: number; rows: Rows | undefined } | undefined;
+  let known: { width: number; layout: Layout } | undefined;
   return (line, index) => {
     const node = nodeRef.current;
     if (!node) return line;
     const width = innerWidth(node) ?? 0;
-    if (known?.width !== width) known = { width, rows: rowsOf(node, width) };
-    const { rows } = known;
-    if (!rows?.continues[index] || stripAnsi(line) !== rows.rows[index]) return line;
-    return line.replace(LEADING_SPACE, '$1');
+    if (known?.width !== width) known = { width, layout: layoutOf(node, width) };
+    const { layout } = known;
+    let result = line;
+    if (layout.continues?.[index] && stripAnsi(line) === layout.rows![index]) {
+      result = result.replace(LEADING_SPACE, '$1');
+    }
+    if (index === ellipsizeAt && layout.count > index + 1 && width >= 1) {
+      result = ellipsize(result, width);
+    }
+    return result;
   };
 }
