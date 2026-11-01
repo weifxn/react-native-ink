@@ -211,6 +211,11 @@ function PressableText(props: TextProps) {
   return <TextImpl {...props} focusInverse={focusable.isFocused} />;
 }
 
+/** Internal: Text that can draw itself in inverse video (focus indicator of composite components). */
+export function InternalText(props: TextProps & { focusInverse?: boolean }) {
+  return <TextImpl {...props} />;
+}
+
 /** Displays text. Nested `<Text>` inherits styles, like React Native. */
 export function Text(props: TextProps) {
   const pressable = props.onPress || props.onPressIn || props.onPressOut || props.onLongPress;

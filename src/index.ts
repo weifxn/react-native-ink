@@ -32,6 +32,60 @@ export type {
   DrawerLayoutAndroidProps,
 } from './components/simple.js';
 export { TextAncestorContext as unstable_TextAncestorContext, RootTagContext } from './internal/contexts.js';
+export { Pressable } from './components/Pressable/index.js';
+export type {
+  PressableProps,
+  PressableStateCallbackType,
+  PressableAndroidRippleConfig,
+  FocusableInstance,
+} from './components/Pressable/index.js';
+export {
+  TouchableOpacity,
+  TouchableHighlight,
+  TouchableWithoutFeedback,
+  TouchableNativeFeedback,
+} from './components/Touchable/index.js';
+export type {
+  TouchableOpacityProps,
+  TouchableHighlightProps,
+  TouchableWithoutFeedbackProps,
+  TouchableNativeFeedbackProps,
+} from './components/Touchable/index.js';
+export { Button } from './components/Button/index.js';
+export type { ButtonProps } from './components/Button/index.js';
+export { Switch } from './components/Switch/index.js';
+export type { SwitchProps, SwitchChangeEvent } from './components/Switch/index.js';
+export { ActivityIndicator, ProgressBarAndroid } from './components/ActivityIndicator/index.js';
+export type { ActivityIndicatorProps, ProgressBarAndroidProps } from './components/ActivityIndicator/index.js';
+export { TextInput } from './components/TextInput/index.js';
+export type {
+  TextInputProps,
+  TextInputInstance,
+  TextInputChangeEvent,
+  TextInputFocusEvent,
+  TextInputSubmitEditingEvent,
+  TextInputEndEditingEvent,
+  TextInputKeyPressEvent,
+  TextInputSelectionChangeEvent,
+} from './components/TextInput/index.js';
+export { ScrollView } from './components/ScrollView/index.js';
+export type { ScrollViewProps, ScrollViewInstance, NativeScrollEvent } from './components/ScrollView/index.js';
+export { FlatList, VirtualizedList, SectionList, VirtualizedSectionList } from './components/Lists/index.js';
+export type {
+  FlatListProps,
+  FlatListInstance,
+  ListRenderItem,
+  ListRenderItemInfo,
+  VirtualizedListProps,
+  SectionListProps,
+  SectionListInstance,
+  SectionListData,
+  SectionListRenderItem,
+  SectionListRenderItemInfo,
+  SectionBase,
+  DefaultSectionT,
+  ViewToken,
+} from './components/Lists/index.js';
 
 // APIs
 export { AppRegistry } from './apis/AppRegistry.js';
