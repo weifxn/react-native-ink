@@ -9,7 +9,7 @@ import { TextInput } from '../src/components/TextInput/index.js';
 import { View } from '../src/components/View/index.js';
 import { MOUSE_OFF, MOUSE_ON, scanMouse } from '../src/internal/mouse.js';
 import { render, type RenderOptions } from '../src/render.js';
-import { FakeStdin, FakeStdout, keys, tick, waitFor } from './helpers.js';
+import { FakeStdin, FakeStdout, keys, settle, tick, waitFor } from './helpers.js';
 
 describe('scanMouse', () => {
   it('takes button reports out of the input, in 0-based cells', () => {
@@ -87,8 +87,10 @@ async function renderWithMouse(element: React.ReactElement, options: RenderOptio
   await tick(100);
   const send = async (...sequence: string[]) => {
     for (const data of sequence) {
+      await settle();
       stdin.send(data);
       await tick(50);
+      await settle();
     }
   };
   const click = (column: number, row: number) => send(press(column, row), release(column, row));

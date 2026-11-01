@@ -87,9 +87,14 @@ export const keys = {
   ctrlW: '\u0017',
 } as const;
 
-/** Writes input and waits for Ink to process it (Esc needs extra time to disambiguate). */
+/**
+ * Writes input and waits for Ink to process it (Esc needs extra time to disambiguate). Each key
+ * waits for what's already under way to finish first: a ScrollView, say, takes focus only once
+ * it has measured itself, a few renders after it mounts.
+ */
 export async function press(stdin: { write(data: string): void }, ...sequence: string[]) {
   for (const data of sequence) {
+    await settle();
     stdin.write(data);
     await tick(data === keys.escape ? 150 : 50);
     await settle();
