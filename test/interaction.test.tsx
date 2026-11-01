@@ -74,7 +74,7 @@ describe('focus model', () => {
 describe('Pressable', () => {
   it('fires onPressIn, onPressOut and onPress on Enter and Space', async () => {
     const calls: string[] = [];
-    const { stdin, lastFrame } = renderInteractive(
+    const { stdin, lastFrame, frames } = renderInteractive(
       <Pressable
         onPressIn={() => calls.push('in')}
         onPressOut={() => calls.push('out')}
@@ -85,8 +85,9 @@ describe('Pressable', () => {
     );
     await press(stdin, keys.tab, keys.enter);
     await waitFor(() => expect(calls).toEqual(['in', 'out', 'press:number']));
-    await waitFor(() => expect(lastFrame()).toBe('pressed'));
-    await tick(150);
+    // The pressed look lasts a moment after the key, so it's looked for among the frames drawn
+    // (a slow machine can be past it by the time it looks at the latest one).
+    await waitFor(() => expect(frames).toContain('pressed'));
     await waitFor(() => expect(lastFrame()).toBe('idle'));
     await press(stdin, keys.space);
     expect(calls).toHaveLength(6);
